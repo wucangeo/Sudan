@@ -2,7 +2,6 @@
  * Created by WUCAN on 2014/11/6.
  */
 
-//var mapURL_sudan = "http://lcoalhost:8399/arcgis/rest/services/sudan/MapServer";
 var mapURL_sudan = "http://localhost:6080/arcgis/rest/services/sudan/MapServer";
 var mapURL_sudan_FeatureLayer = "http://localhost:6080/arcgis/rest/services/sudan/FeatureServer";
 
@@ -22,6 +21,13 @@ var renderLayer;                //需要渲染的图层
 
 //图层属性表
 var attributeArray = [];    //图层属性
+var attrFeatureArray = [];      //存储查询到的feature，用于定位
+
+//图层渲染
+var preOptLayerId = -1;         //前一个操作的图层id
+
+
+
 
 require([
         "esri/map",
@@ -30,10 +36,12 @@ require([
         "esri/layers/FeatureLayer",
         "esri/layers/ArcGISDynamicMapServiceLayer",
         "esri/layers/LabelLayer",
+        "esri/geometry/Extent",
 
 
         "esri/renderers/SimpleRenderer",
         "esri/symbols/SimpleFillSymbol",
+        "esri/symbols/SimpleLineSymbol",
         "esri/symbols/SimpleMarkerSymbol",
         "esri/symbols/TextSymbol",
 
@@ -47,7 +55,7 @@ require([
         "dojo/dom-class",
         "dojo/_base/json",
         "dojo/string",
-        "dojo/domReady!"], function (Map, esriRequest, Color, FeatureLayer, ArcGISDynamicMapServiceLayer, LabelLayer, SimpleRenderer, SimpleFillSymbol, SimpleMarkerSymbol, TextSymbol, Query, QueryTask, dom, on, query, arrayUtils, domClass, dojoJson, dojoString) {
+        "dojo/domReady!"], function (Map, esriRequest, Color, FeatureLayer, ArcGISDynamicMapServiceLayer, LabelLayer, Extent, SimpleRenderer, SimpleFillSymbol, SimpleLineSymbol, SimpleMarkerSymbol, TextSymbol, Query, QueryTask, dom, on, query, arrayUtils, domClass, dojoJson, dojoString) {
         map = new Map("sudan_mapDiv", {
             logo: false
         });
@@ -123,7 +131,7 @@ require([
 
                 //create context menu
                 var contextMenu = $("#jqxMenu").jqxMenu({ width: '120px', height: '84px', autoOpenPopup: false, mode: 'popup' });
-                var clickedItem = null;
+
 
                 //右键菜单======================================================================
                 var attachContextMenu = function () {
@@ -397,6 +405,10 @@ require([
                     var color = event.args.color;
                     $("#SingleSymbolColorDropDown").jqxDropDownButton('setContent', getLabelColorByDropDown(color));
                 });
+                $('#setSingleSymbolColorOutlinePicker').bind('colorchange', function (event) {
+                    var color = event.args.color;
+                    $("#SingleSymbolColorOutlineDropDown").jqxDropDownButton('setContent', getLabelColorByDropDown(color));
+                });
                 //确定
                 $("#symbolRenderSubmitButton").on('click', function () {
                     setLayerSymbolRender();
@@ -422,15 +434,23 @@ require([
 
             function _createElements() {
                 $('#symbolRenderWindow').jqxWindow({
-                    width: 350, height: 460, resizable: false, autoOpen: false, position: {x: 250, y: 130},
+                    width: 350, height: 500, resizable: false, autoOpen: false, position: {x: 250, y: 130},
                     initContent: function () {
                         //单一符号
                         $('#singleSymbolRenderRadio').jqxRadioButton({ width: 300, height: 25, checked: true});
-                        $("#SingleSymbolRenderPanel").jqxPanel({ width: 310, height: 85, disabled: true});
+                        $("#SingleSymbolRenderPanel").jqxPanel({ width: 310, height: 125, disabled: true});
+
                         $("#setSingleSymbolColorPicker").jqxColorPicker({ color: "137013", colorMode: 'hue', width: 220, height: 220});
                         $("#SingleSymbolColorDropDown").jqxDropDownButton({ width: '150px', height: '25px'});
                         $("#SingleSymbolColorDropDown").jqxDropDownButton('setContent', getLabelColorByDropDown(new $.jqx.color({ hex: "137013" })));
-                        $("#setSingleSymbolSizeNumber").jqxNumberInput({  width: '150px', height: '25px', disabled: false, inputMode: 'simple', spinButtons: true})
+
+                        $("#setSingleSymbolColorOutlinePicker").jqxColorPicker({ color: "ff0000", colorMode: 'hue', width: 220, height: 220});
+                        $("#SingleSymbolColorOutlineDropDown").jqxDropDownButton({ width: '150px', height: '25px'});
+                        $("#SingleSymbolColorOutlineDropDown").jqxDropDownButton('setContent', getLabelColorByDropDown(new $.jqx.color({ hex: "ff0000" })));
+
+                        $("#setSingleSymbolSizeNumber").jqxNumberInput({  width: '150px', height: '25px', disabled: false,
+                            inputMode: 'simple', spinButtons: true, decimalDigits: 0});
+                        $("#setSingleSymbolSizeNumber").jqxNumberInput('val', 3); //设置默认值
                         //唯一值
                         $('#uniqueValueRenderRadio').jqxRadioButton({ width: 300, height: 25, checked: false});
                         $("#uniqueValueRenderPanel").jqxPanel({ width: 310, height: 190, disabled: true});
@@ -438,17 +458,16 @@ require([
                         $("#uniqueRenderColorDropDownList").jqxDropDownList({ source: source_renderFields, selectedIndex: 1, width: '160', height: '25', disabled: false});
                         $('#symbolRenderSubmitButton').jqxButton({ width: '80px', disabled: false });
                         $('#symbolRenderCancelButton').jqxButton({ width: '80px', disabled: false });
-                        $("#uniqueRenderSymbolsGrid").jqxGrid(
-                            {
-                                width: 290//,
-                                //source: dataAdapter,
-                                //columnsresize: true,
+                        $("#uniqueRenderSymbolsGrid").jqxGrid({
+                            width: 290//,
+                            //source: dataAdapter,
+                            //columnsresize: true,
 //                            columns: [
 //                                { text: '符号', width: 60 },
 //                                { text: '值',  width: 150 },
 //                                { text: '个数',width: 80 }
 //                            ]
-                            });
+                        });
                     }
                 });
             };
@@ -462,6 +481,7 @@ require([
 
         //开始符号渲染
         function setLayerSymbolRender() {
+            map.graphics.clear();
             //移除已经渲染的图层
             if (renderLayer) {
                 map.removeLayer(renderLayer);
@@ -471,35 +491,31 @@ require([
             }
             if ($("#singleSymbolRenderRadio").val()) {
                 var symbolColor = $("#setSingleSymbolColorPicker").jqxColorPicker('getColor');
+                symbolColor.a = 1;  //恢复默认颜色透明度为1
+                var symbolColorOutline = $("#setSingleSymbolColorOutlinePicker").jqxColorPicker('getColor');
                 var symbolSize = $("#setSingleSymbolSizeNumber").jqxNumberInput('val');
 
-                var renderLayerURL = mapURL_sudan_FeatureLayer + "/" + currentOptLayerId;
-                renderLayer = new FeatureLayer(renderLayerURL, {
-                    mode: FeatureLayer.MODE_ONDEMAND,
-                    outFields: ["*"],
-                    opacity: 0.5
-                });
-                map.addLayer(renderLayer);
-                var layerJsonInfo = renderLayer.toJson();
+                attrFeatureArray = new Array();     //存储查询到的所有feature，用于定位
 
-                var markerSym = new SimpleMarkerSymbol();
-                markerSym.setSize(symbolSize);
-                markerSym.setColor(symbolColor);
-                //markerSym.setOutline(markerSym.outline.setColor(new Color([133,197,133,0.75])));
-                var rendererPoint = new SimpleRenderer(markerSym);
-                renderLayer.setRenderer(rendererPoint);
+                var queryTask = new QueryTask(mapURL_sudan + "/" + currentOptLayerId);  //当前图层url
+                var query = new Query();
+                query.returnGeometry = true;
+                query.outFields = ["*"];
+                query.where = "1=1";  //即获取全部数据
+                queryTask.execute(query, showResults);
 
-
-                switch (renderLayer.geometryType) {
-                    case "esriGeometryPoint":
-
-                        break;
-                    case "esriGeometryPolyline":
-                        break;
-                    case "esriGeometryPolygon":
-                        break;
+                function showResults(results) {
+                    var resultCount = results.features.length;
+                    for (var i = 0; i < resultCount; i++) {
+                        var feature = results.features[i];
+                        var featureType = feature.geometry.type;
+                        //渲染要素
+                        feature.setSymbol(setFeatureSymbol(featureType, symbolSize, symbolColor, symbolColorOutline));
+                        map.graphics.add(feature);
+                    }
+                    var extent = esri.graphicsExtent(map.graphics.graphics);
+                    map.setExtent(extent.expand(1.5), true);
                 }
-                //if()
             }
             else if ($("#uniqueValueRenderRadio").val()) {
 
@@ -510,6 +526,32 @@ require([
         var attributeWindow = (function () {
             //各控件事件
             function _addEventListeners() {
+                $("#attributeGrid").on('rowclick', function (event) {
+                    //取得点击表格位置
+                    var args = event.args;
+                    var rowindex = args.rowindex;
+                    //取得要素并缩放到要素
+                    if (attrFeatureArray.length == 0) {
+                        return;
+                    }
+                    var feature = attrFeatureArray[rowindex];
+                    if (!feature) {
+                        return;
+                    }
+                    var geo = feature.geometry;
+                    if (geo.type == 'point') {
+                        var point = new esri.geometry.Point(geo.x, geo.y, geo.spatialReference); //这个点处于地图的中间
+                        map.centerAt(point);
+                    } else {
+                        var extent = geo.getExtent();
+                        map.setExtent(extent.expand(5.0), false);
+                    }
+                    //渲染要素
+                    feature.setSymbol(setFeatureSymbol(geo.type));
+                    map.graphics.clear();
+                    map.graphics.add(feature);
+
+                });
 
             };
             function _createElements() {
@@ -520,10 +562,11 @@ require([
                             {
                                 width: '100%',
                                 //height: '100%',
-                                autoheight:true,
+                                autoheight: true,
                                 pageable: true,
                                 pagesize: 100,
-                                columnsresize: true
+                                columnsresize: true,
+                                selectionmode: 'singlerow'
                             });
                     }
                 });
@@ -538,6 +581,8 @@ require([
 
         function getLayerAttributeArr() {
             var attributeArray = [];
+            attrFeatureArray = new Array();     //存储查询到的所有feature，用于定位
+
             var queryTask = new QueryTask(mapURL_sudan + "/" + currentOptLayerId);  //当前图层url
             var query = new Query();
             query.returnGeometry = true;
@@ -552,7 +597,9 @@ require([
                     var featureType = feature.geometry.type;
                     var featureAttributes = feature.attributes;
                     featureAttributes["Shape"] = featureType;
-                    attributeArray.push(featureAttributes);
+
+                    attributeArray.push(featureAttributes);     //属性
+                    attrFeatureArray.push(feature);             //要素
                 }
                 initAttrGridData(attributeArray);
             }
@@ -613,6 +660,67 @@ require([
                 columns: columns
             });
 
+        }
+
+        //渲染要素-==================================================================================
+        function setFeatureSymbol(featureType, size, colorIn, colorOut) {
+            var symbol;
+            switch (featureType) {
+                case "point":
+                case "multipoint":
+                    if (!size) {
+                        size = 20;
+                    }
+                    if (!colorIn) {
+                        colorIn = new Color([255, 0, 0, 1]);
+                    }
+                    if (!colorOut) {
+                        colorOut = new Color([255, 0, 0, 1]);
+                    }
+                    symbol = new esri.symbol.SimpleMarkerSymbol(
+                        esri.symbol.SimpleMarkerSymbol.STYLE_CIRCLE,
+                        size,
+                        new SimpleLineSymbol(SimpleLineSymbol.STYLE_SOLID,
+                            colorOut, 1),
+                        colorIn);
+                    break;
+                case "polyline":
+                    if (!size) {
+                        size = 5;
+                    }
+                    if (!colorIn) {
+                        colorIn = new Color([255, 0, 0, 1]);
+                    }
+                    if (!colorOut) {
+                        colorOut = new Color([255, 0, 0, 1]);
+                    }
+                    symbol = new esri.symbol.SimpleLineSymbol(
+                        esri.symbol.SimpleLineSymbol.STYLE_SOLID,
+                        colorOut,
+                        size);
+                    break;
+                case "polygon":
+                    if (!size) {
+                        size = 3;
+                    }
+                    if (!colorIn) {
+                        colorIn = new Color([255, 0, 0, 0.5]);
+                    }
+                    if (!colorOut) {
+                        colorOut = new Color([0, 0, 255, 1]);
+                    }
+                    colorIn.a = 0.5;
+                    symbol = new esri.symbol.SimpleFillSymbol(
+                        esri.symbol.SimpleFillSymbol.STYLE_SOLID,
+                        new esri.symbol.SimpleLineSymbol(
+                            esri.symbol.SimpleLineSymbol.STYLE_SOLID,
+                            colorOut,
+                            size),
+                        colorIn);
+                    break;
+                default :
+            }
+            return symbol;
         }
 
         //取得图层字段列表===========================================================================
