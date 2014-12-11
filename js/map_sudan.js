@@ -21,13 +21,24 @@ var renderLayer;                //需要渲染的图层
 
 //图层属性表
 var attributeArray = [];    //图层属性
-var attrFeatureArray = [];      //存储查询到的feature，用于定位
+var singleRenderLayerAttributeArray = [];      //存储查询到的feature，用于定位
 
 //图层渲染
 var preOptLayerId = -1;         //前一个操作的图层id
-
-
-
+var colorRampArray = [          //唯一值渲染颜色带
+    {index: "0", fromColor: "#FF0000", toColor: "#00FF00"},
+    {index: "1", fromColor: "#FF0000", toColor: "#00FF00"},
+    {index: "2", fromColor: "#FF0000", toColor: "#00FF00"},
+    {index: "3", fromColor: "#FF0000", toColor: "#00FF00"},
+    {index: "4", fromColor: "#FF0000", toColor: "#00FF00"},
+    {index: "5", fromColor: "#FF0000", toColor: "#00FF00"},
+    {index: "6", fromColor: "#FF0000", toColor: "#00FF00"},
+    {index: "7", fromColor: "#FF0000", toColor: "#00FF00"}
+];
+var canvasId = "canvasColorRamp";   //canvas的名称
+var colorRampHtmlArray = [];          //存储Canvas的html代码
+var uniqueRenderLayerAttributeArray = [];       //图层的属性表
+var uniqueAttrStatisticByFieldNameArray = [];        //按照字段名称统计内容个数
 
 require([
         "esri/map",
@@ -129,6 +140,9 @@ require([
                 $('#sudan_layerListDiv').jqxTree({ hasThreeStates: true, checkboxes: true});
                 $('#sudan_layerListDiv').css('visibility', 'visible');
 
+                //创建唯一值渲染色带
+                setColorRampDropDownList();
+
                 //create context menu
                 var contextMenu = $("#jqxMenu").jqxMenu({ width: '120px', height: '84px', autoOpenPopup: false, mode: 'popup' });
 
@@ -138,8 +152,10 @@ require([
                     // open the context menu when the user presses the mouse right button.
                     $("#sudan_layerListDiv li").on('mousedown', function (event) {
                         var target = $(event.target).parents('li:first')[0];
-                        currentOptLayerId = target.id; //记录右键点击的图层id
+                        //记录右键点击的图层id
+                        currentOptLayerId = target.id;
                         layerFieldsInfo = getLayerFiledListContent(currentOptLayerId);     //取得图层字段列表
+
                         //判断是否为右键菜单
                         var rightClick = isRightClick(event);
                         if (rightClick && target != null) {
@@ -158,6 +174,7 @@ require([
                 $("#jqxMenu").on('itemclick', function (event) {
                     var item = $.trim(event.args.id);
                     switch (item) {
+                        //查看图层属性表
                         case "openAttrTable":
                             if (!$('#attributeWindow').jqxWindow('isOpen')) {
                                 $('#attributeWindow').jqxWindow('open');
@@ -165,6 +182,7 @@ require([
                             getLayerAttributeArr();
                             $('#attributeContainerTitle').text(currentLayerName);   //设置当前图层名称
                             break;
+                        //设置图层标注
                         case "setLabelField":
                             if (!$('#labelSettingWindow').jqxWindow('isOpen')) {
                                 $('#labelSettingWindow').jqxWindow('open');
@@ -173,7 +191,9 @@ require([
                             }
                             $("#labelSettingCurLayerName").text(currentLayerName); //选择的图层
                             break;
+                        //设置图层渲染
                         case "setRenderSymbol":
+                            getCurrLayerAttribute();        //取得当前图层的属性表
                             $('#symbolRenderWindow').jqxWindow('open');
                             $("#symbolRenderCurLayerName").text(currentLayerName); //选择的图层
                             break;
@@ -200,16 +220,17 @@ require([
                 labelSettingWindow.init();  //标注面板初始化
                 symbolRenderWindow.init();  //符号渲染面板初始化
                 attributeWindow.init();     //图层属性窗体初始化
+
+                $('#sudan_layerListDiv').on('checkChange', function (event) {
+                    var args = event.args;
+                    var item = $('#sudan_layerListDiv').jqxTree('getItem', args.element);
+                    //$('#textDiv').jqxPanel('prepend', '<div style="margin-top: 5px;">Selected: ' + item.label + '</div>');
+                    updateLayerVisibility();
+                });
+
             });
 
             layersServices.setVisibleLayers(layerVisibleArr);
-
-            $('#sudan_layerListDiv').on('checkChange', function (event) {
-                var args = event.args;
-                var item = $('#sudan_layerListDiv').jqxTree('getItem', args.element);
-                //$('#textDiv').jqxPanel('prepend', '<div style="margin-top: 5px;">Selected: ' + item.label + '</div>');
-                updateLayerVisibility();
-            });
         }
 
         //更新图层可见设置
@@ -320,7 +341,6 @@ require([
             }
             $("#labelFieldDropDownList").jqxDropDownList({ source: layerFieldsSource});
             $("#labelFieldDropDownList").jqxDropDownList('selectIndex', 0);
-
         }
 
         //设置标注图层
@@ -379,25 +399,13 @@ require([
                     var checked = event.args.checked;
                     if (checked) {
                         $("#SingleSymbolColorDropDown").jqxDropDownButton({disabled: false});
+                        $("#SingleSymbolColorOutlineDropDown").jqxDropDownButton({disabled: false});
                         $("#setSingleSymbolSizeNumber").jqxNumberInput({disabled: false});
                     }
                     else {
                         $("#SingleSymbolColorDropDown").jqxDropDownButton({disabled: true});
+                        $("#SingleSymbolColorOutlineDropDown").jqxDropDownButton({disabled: true});
                         $("#setSingleSymbolSizeNumber").jqxNumberInput({disabled: true});
-                    }
-                });
-                //唯一值渲染选择事件
-                $("#uniqueValueRenderRadio").on('change', function (event) {
-                    var checked = event.args.checked;
-                    if (checked) {
-                        $("#uniqueRenderFieldDropDownList").jqxDropDownList({disabled: false});
-                        $("#uniqueRenderColorDropDownList").jqxDropDownList({disabled: false});
-                        $("#uniqueRenderSymbolsGrid").jqxGrid({disabled: false});
-                    }
-                    else {
-                        $("#uniqueRenderFieldDropDownList").jqxDropDownList({disabled: true});
-                        $("#uniqueRenderColorDropDownList").jqxDropDownList({disabled: true});
-                        $("#uniqueRenderSymbolsGrid").jqxGrid({disabled: true});
                     }
                 });
                 //颜色选择事件
@@ -409,6 +417,33 @@ require([
                     var color = event.args.color;
                     $("#SingleSymbolColorOutlineDropDown").jqxDropDownButton('setContent', getLabelColorByDropDown(color));
                 });
+                //唯一值渲染选择事件
+                $("#uniqueValueRenderRadio").on('change', function (event) {
+                    var checked = event.args.checked;
+                    if (checked) {
+                        $("#uniqueRenderFieldDropDownList").jqxDropDownList({disabled: false});
+                        $("#uniqueRenderColorRampDropDownList").jqxDropDownList({disabled: false});
+                        $("#uniqueRenderSymbolsGrid").jqxGrid({disabled: false});
+                    }
+                    else {
+                        $("#uniqueRenderFieldDropDownList").jqxDropDownList({disabled: true});
+                        $("#uniqueRenderColorRampDropDownList").jqxDropDownList({disabled: true});
+                        $("#uniqueRenderSymbolsGrid").jqxGrid({disabled: true});
+                    }
+                });
+                //字段选择事件
+                $("#uniqueRenderFieldDropDownList").on('select', function (event) {
+                    var fieldName = $('#uniqueRenderFieldDropDownList').val();
+                    uniqueValueSelectedFieldEvent(fieldName);
+                });
+                //色带事件
+                $('#uniqueRenderColorRampDropDownList').on('open', function (event) {
+                    //setColorRampDropDownList();                 //设置唯一值渲染色带
+                });
+                $('#uniqueRenderColorRampDropDownList').on('select', function (event) {
+                    var args = event.args;
+                    var index = args.index;
+                });
                 //确定
                 $("#symbolRenderSubmitButton").on('click', function () {
                     setLayerSymbolRender();
@@ -417,56 +452,64 @@ require([
                 $("#symbolRenderCancelButton").on('click', function () {
                     $('#symbolRenderWindow').jqxWindow('close');
                 });
-            };
 
-            var source_renderFields = [
-                "Starts with",
-                "Starts with(Case Sensitive)",
-                "Ends with",
-                "Ends with(Case Sensitive)",
-                "Contains",
-                "Equal",
-                "Contains(Case Sensitive)",
-                "Equal(Case Sensitive)"
-            ];
+                //打开windows事件
+                $('#symbolRenderWindow').on('open', function (event) {
+                    setUniqueRenderFieldsListDropDown();        //设置唯一值渲染字段
+                });
+
+            };
             var source_LabelSize = ["初始项"];
             var source_renderFields = ["初始项"];
+            var source_ColorRamp = {
+                localdata: colorRampArray,
+                datatype: "array"
+            };
+            var dataAdapt = new $.jqx.dataAdapter(source_ColorRamp);
+
 
             function _createElements() {
                 $('#symbolRenderWindow').jqxWindow({
-                    width: 350, height: 500, resizable: false, autoOpen: false, position: {x: 250, y: 130},
+                    width: 350, height: 550, resizable: false, autoOpen: false, position: {x: 250, y: 130},
                     initContent: function () {
                         //单一符号
                         $('#singleSymbolRenderRadio').jqxRadioButton({ width: 300, height: 25, checked: true});
                         $("#SingleSymbolRenderPanel").jqxPanel({ width: 310, height: 125, disabled: true});
 
                         $("#setSingleSymbolColorPicker").jqxColorPicker({ color: "137013", colorMode: 'hue', width: 220, height: 220});
-                        $("#SingleSymbolColorDropDown").jqxDropDownButton({ width: '150px', height: '25px'});
+                        $("#SingleSymbolColorDropDown").jqxDropDownButton({ width: '180px', height: '25px'});
                         $("#SingleSymbolColorDropDown").jqxDropDownButton('setContent', getLabelColorByDropDown(new $.jqx.color({ hex: "137013" })));
 
                         $("#setSingleSymbolColorOutlinePicker").jqxColorPicker({ color: "ff0000", colorMode: 'hue', width: 220, height: 220});
-                        $("#SingleSymbolColorOutlineDropDown").jqxDropDownButton({ width: '150px', height: '25px'});
+                        $("#SingleSymbolColorOutlineDropDown").jqxDropDownButton({ width: '180px', height: '25px'});
                         $("#SingleSymbolColorOutlineDropDown").jqxDropDownButton('setContent', getLabelColorByDropDown(new $.jqx.color({ hex: "ff0000" })));
 
-                        $("#setSingleSymbolSizeNumber").jqxNumberInput({  width: '150px', height: '25px', disabled: false,
+                        $("#setSingleSymbolSizeNumber").jqxNumberInput({  width: '180px', height: '25px', disabled: false,
                             inputMode: 'simple', spinButtons: true, decimalDigits: 0});
                         $("#setSingleSymbolSizeNumber").jqxNumberInput('val', 3); //设置默认值
                         //唯一值
                         $('#uniqueValueRenderRadio').jqxRadioButton({ width: 300, height: 25, checked: false});
-                        $("#uniqueValueRenderPanel").jqxPanel({ width: 310, height: 190, disabled: true});
-                        $("#uniqueRenderFieldDropDownList").jqxDropDownList({ source: source_renderFields, selectedIndex: 1, width: '160', height: '25', disabled: false});
-                        $("#uniqueRenderColorDropDownList").jqxDropDownList({ source: source_renderFields, selectedIndex: 1, width: '160', height: '25', disabled: false});
+                        $("#uniqueValueRenderPanel").jqxPanel({ width: 310, height: 240, disabled: true});
+                        $("#uniqueRenderFieldDropDownList").jqxDropDownList({ source: source_renderFields, selectedIndex: 1, width: '180', height: '25', disabled: false});
+                        $("#uniqueRenderColorRampDropDownList").jqxDropDownList({ source: dataAdapt, selectedIndex: 1, width: '180', height: '25', disabled: false,
+                            renderer: function (index, label, value) {
+                                return colorRampHtmlArray[index];
+                            }
+                        });
+
                         $('#symbolRenderSubmitButton').jqxButton({ width: '80px', disabled: false });
                         $('#symbolRenderCancelButton').jqxButton({ width: '80px', disabled: false });
                         $("#uniqueRenderSymbolsGrid").jqxGrid({
-                            width: 290//,
-                            //source: dataAdapter,
-                            //columnsresize: true,
-//                            columns: [
-//                                { text: '符号', width: 60 },
-//                                { text: '值',  width: 150 },
-//                                { text: '个数',width: 80 }
-//                            ]
+                            width: 290,
+                            height:160,
+                            columnsresize: true,
+                            pageable: true,
+                            sortable: true,
+                            columns: [
+                                { text: '符号', datafield: "symbol", width: 60 },
+                                { text: '值', datafield: "value", width: 150 },
+                                { text: '个数', datafield: "count", width: 60 }
+                            ]
                         });
                     }
                 });
@@ -479,9 +522,24 @@ require([
             };
         }());
 
+        //设置字段下拉列表
+        function setUniqueRenderFieldsListDropDown() {
+            layerFieldsSource = [];
+            if (!layerFieldsInfo || layerFieldsInfo == "failure" || layerFieldsInfo.length == 0) {
+                layerFieldsSource.push("无法获取图层信息");
+            } else {
+                for (var index = 0; index < layerFieldsInfo.length; index++) {
+                    layerFieldsSource.push(layerFieldsInfo[index][1]);
+                }
+            }
+            $("#uniqueRenderFieldDropDownList").jqxDropDownList({ source: layerFieldsSource});
+            $("#uniqueRenderFieldDropDownList").jqxDropDownList('selectIndex', 0);
+        }
+
         //开始符号渲染
         function setLayerSymbolRender() {
             map.graphics.clear();
+
             //移除已经渲染的图层
             if (renderLayer) {
                 map.removeLayer(renderLayer);
@@ -495,8 +553,9 @@ require([
                 var symbolColorOutline = $("#setSingleSymbolColorOutlinePicker").jqxColorPicker('getColor');
                 var symbolSize = $("#setSingleSymbolSizeNumber").jqxNumberInput('val');
 
-                attrFeatureArray = new Array();     //存储查询到的所有feature，用于定位
+                singleRenderLayerAttributeArray = new Array();     //存储查询到的所有feature，用于定位
 
+                //查询要素并渲染
                 var queryTask = new QueryTask(mapURL_sudan + "/" + currentOptLayerId);  //当前图层url
                 var query = new Query();
                 query.returnGeometry = true;
@@ -513,8 +572,12 @@ require([
                         feature.setSymbol(setFeatureSymbol(featureType, symbolSize, symbolColor, symbolColorOutline));
                         map.graphics.add(feature);
                     }
-                    var extent = esri.graphicsExtent(map.graphics.graphics);
-                    map.setExtent(extent.expand(1.5), true);
+
+                    if (preOptLayerId != currentOptLayerId) {
+                        var extent = esri.graphicsExtent(map.graphics.graphics);
+                        map.setExtent(extent.expand(1.5), true);
+                        preOptLayerId = currentOptLayerId;
+                    }
                 }
             }
             else if ($("#uniqueValueRenderRadio").val()) {
@@ -522,66 +585,171 @@ require([
             }
         }
 
+        //唯一值渲染字段选择后，计算数据并显示
+        function uniqueValueSelectedFieldEvent(fieldName) {
+            uniqueAttrStatisticByFieldNameArray = new Array();
+
+            if (uniqueRenderLayerAttributeArray.length == 0) {
+                return;
+            }
+            //统计值的个数
+            for (var i in uniqueRenderLayerAttributeArray) {
+                var featureAttr = uniqueRenderLayerAttributeArray[i];
+                var value = featureAttr[fieldName];
+                if (!value) {
+                    continue;
+                }
+                if (uniqueAttrStatisticByFieldNameArray[value]) {
+                    uniqueAttrStatisticByFieldNameArray[value] += 1;
+                } else {
+                    uniqueAttrStatisticByFieldNameArray[value] = 1;
+                }
+            }
+            var data = new Array();
+            for (var key in uniqueAttrStatisticByFieldNameArray) {
+                var value = uniqueAttrStatisticByFieldNameArray[key];
+                if (value) {
+                    var row = {};
+                    row["value"] = key;
+                    row["count"] = value;
+                    data.push(row);
+                }
+            }
+            var source = {
+                localdata: data,
+                datatype: "array",
+                dataField: [
+                    {name: 'symbol', type: 'string'},
+                    {name: 'value', type: 'string'},
+                    {name: 'count', type: 'number'}
+                ]
+            };
+            var dataAdapter = new $.jqx.dataAdapter(source);
+            $("#uniqueRenderSymbolsGrid").jqxGrid({
+                source: dataAdapter
+            });
+
+        }
+
+        //取得图层的属性表
+        function getCurrLayerAttribute() {
+            uniqueRenderLayerAttributeArray = new Array();
+            //查询要素并渲染
+            var queryTask = new QueryTask(mapURL_sudan + "/" + currentOptLayerId);  //当前图层url
+            var query = new Query();
+            query.returnGeometry = true;
+            query.outFields = ["*"];
+            query.where = "1=1";  //即获取全部数据
+            queryTask.execute(query, showResults);
+
+            function showResults(results) {
+                var resultCount = results.features.length;
+                for (var i = 0; i < resultCount; i++) {
+                    var feature = results.features[i];
+                    var featureType = feature.geometry.type;
+                    var attr = feature.attributes;
+                    attr["Shape"] = featureType;
+                    uniqueRenderLayerAttributeArray.push(attr);
+                }
+            }
+        }
+
+        //设置颜色带的下拉列表
+        function setColorRampDropDownList() {
+            colorRampHtmlArray = [];
+
+            for (var i in colorRampArray) {
+                var canvasHtml = "<div><canvas id='" + canvasId + i + "' width='145' height='25' style='border:1px solid #c3c3c3;'>浏览器不支持，请升级。</canvas></div>";
+                //var index = colorRampArray[i].index;
+                var fromColor = colorRampArray[i].fromColor;
+                var toColor = colorRampArray[i].toColor;
+                setColorRamp(canvasId + i, fromColor, toColor);
+
+                colorRampHtmlArray.push(canvasHtml);
+            }
+        }
+
+        //设置颜色带
+        function setColorRamp(canvasId, fromColor, toColor) {
+            var can = document.getElementById(canvasId);
+            if (!can) {
+                return;
+            }
+            var cxt = can.getContext("2d");
+            var canvasWidth = 145;
+            var canvasHeight = 25;
+            var grd = cxt.createLinearGradient(0, 0, canvasWidth, canvasHeight);
+            grd.addColorStop(0, fromColor);
+            grd.addColorStop(1, toColor);
+
+            cxt.fillStyle = grd;
+            cxt.fillRect(0, 0, canvasWidth, canvasHeight);
+        }
+
         //图层属性表window-=================================================================================
         var attributeWindow = (function () {
-            //各控件事件
-            function _addEventListeners() {
-                $("#attributeGrid").on('rowclick', function (event) {
-                    //取得点击表格位置
-                    var args = event.args;
-                    var rowindex = args.rowindex;
-                    //取得要素并缩放到要素
-                    if (attrFeatureArray.length == 0) {
-                        return;
-                    }
-                    var feature = attrFeatureArray[rowindex];
-                    if (!feature) {
-                        return;
-                    }
-                    var geo = feature.geometry;
-                    if (geo.type == 'point') {
-                        var point = new esri.geometry.Point(geo.x, geo.y, geo.spatialReference); //这个点处于地图的中间
-                        map.centerAt(point);
-                    } else {
-                        var extent = geo.getExtent();
-                        map.setExtent(extent.expand(5.0), false);
-                    }
-                    //渲染要素
-                    feature.setSymbol(setFeatureSymbol(geo.type));
-                    map.graphics.clear();
-                    map.graphics.add(feature);
+                //各控件事件
+                function _addEventListeners() {
+                    $("#attributeGrid").on('rowclick', function (event) {
+                        //取得点击表格位置
+                        var args = event.args;
+                        var rowindex = args.rowindex;
+                        //取得要素并缩放到要素
+                        if (singleRenderLayerAttributeArray.length == 0) {
+                            return;
+                        }
+                        var feature = singleRenderLayerAttributeArray[rowindex];
+                        if (!feature) {
+                            return;
+                        }
+                        var geo = feature.geometry;
+                        if (geo.type == 'point') {
+                            var point = new esri.geometry.Point(geo.x, geo.y, geo.spatialReference); //这个点处于地图的中间
+                            map.centerAt(point);
+                        } else {
+                            var extent = geo.getExtent();
+                            map.setExtent(extent.expand(5.0), false);
+                        }
+                        //渲染要素
+                        feature.setSymbol(setFeatureSymbol(geo.type));
+                        map.graphics.clear();
+                        map.graphics.add(feature);
 
-                });
+                    });
 
-            };
-            function _createElements() {
-                $('#attributeWindow').jqxWindow({
-                    width: 650, height: 400, resizable: false, autoOpen: false, position: {x: 250, y: 130},
-                    initContent: function () {
-                        $("#attributeGrid").jqxGrid(
-                            {
-                                width: '100%',
-                                //height: '100%',
-                                autoheight: true,
-                                pageable: true,
-                                pagesize: 100,
-                                columnsresize: true,
-                                selectionmode: 'singlerow'
-                            });
+                };
+                function _createElements() {
+                    $('#attributeWindow').jqxWindow({
+                        width: 650, height: 400, resizable: false, autoOpen: false, position: {x: 250, y: 130},
+                        initContent: function () {
+                            $("#attributeGrid").jqxGrid(
+                                {
+                                    width: '100%',
+                                    //height: '100%',
+                                    autoheight: true,
+                                    pageable: true,
+                                    pagesize: 100,
+                                    columnsresize: true,
+                                    selectionmode: 'singlerow',
+                                    sortable: true
+                                });
+                        }
+                    });
+                };
+                return {
+                    init: function () {
+                        _createElements();
+                        _addEventListeners();
                     }
-                });
-            };
-            return {
-                init: function () {
-                    _createElements();
-                    _addEventListeners();
-                }
-            };
-        }());
+                };
+            }
+            ()
+                )
+            ;
 
         function getLayerAttributeArr() {
             var attributeArray = [];
-            attrFeatureArray = new Array();     //存储查询到的所有feature，用于定位
+            singleRenderLayerAttributeArray = new Array();     //存储查询到的所有feature，用于定位
 
             var queryTask = new QueryTask(mapURL_sudan + "/" + currentOptLayerId);  //当前图层url
             var query = new Query();
@@ -599,7 +767,7 @@ require([
                     featureAttributes["Shape"] = featureType;
 
                     attributeArray.push(featureAttributes);     //属性
-                    attrFeatureArray.push(feature);             //要素
+                    singleRenderLayerAttributeArray.push(feature);             //要素
                 }
                 initAttrGridData(attributeArray);
             }
@@ -662,7 +830,7 @@ require([
 
         }
 
-        //渲染要素-==================================================================================
+//渲染要素-==================================================================================
         function setFeatureSymbol(featureType, size, colorIn, colorOut) {
             var symbol;
             switch (featureType) {
@@ -723,7 +891,7 @@ require([
             return symbol;
         }
 
-        //取得图层字段列表===========================================================================
+//取得图层字段列表===========================================================================
         function getLayerFiledListContent(layerID) {
             layerFieldsInfo = [];
             if (layerID == "-1") {
@@ -780,7 +948,7 @@ require([
             console.log("无法获取图层列表", dojoJson.toJson(error, true));
         }
 
-        //================================================================================
+//================================================================================
 
     }
 )
