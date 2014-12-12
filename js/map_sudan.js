@@ -25,15 +25,15 @@ var singleRenderLayerAttributeArray = [];      //存储查询到的feature，用
 
 //图层渲染
 var preOptLayerId = -1;         //前一个操作的图层id
-var colorRampArray = [          //唯一值渲染颜色带
-    {index: "0", fromColor: "#FF0000", toColor: "#00FF00"},
-    {index: "1", fromColor: "#FF0000", toColor: "#00FF00"},
-    {index: "2", fromColor: "#FF0000", toColor: "#00FF00"},
-    {index: "3", fromColor: "#FF0000", toColor: "#00FF00"},
-    {index: "4", fromColor: "#FF0000", toColor: "#00FF00"},
-    {index: "5", fromColor: "#FF0000", toColor: "#00FF00"},
-    {index: "6", fromColor: "#FF0000", toColor: "#00FF00"},
-    {index: "7", fromColor: "#FF0000", toColor: "#00FF00"}
+var colorRampArray = [          //唯一值渲染颜色带 取色网站：http://www.pixelfor.me/crc
+    {colorKey: "ff000000ff00", colorRamp: ["#ff0000", "#00ff00"]},
+    {colorKey: "ff00000000ff", colorRamp: ["#ff0000", "#0000ff"]},
+    {colorKey: "0603050", colorRamp: ["#000F07", "#013A01", "#316300", "#8C8C00", "#B75B00", "#E00000", "#FF7F00", "#FFFF00", "#7FFF00", "#00FF00", "#07FF83", "#35FFFF", "#60AFFF", "#8787FF", "#D8B2FF", "#FFDDFF"]},
+    {colorKey: "1203050", colorRamp: ["#070F00", "#3A3A01", "#633100", "#8C0000", "#B75B00", "#E0E000", "#7FFF00", "#00FF00", "#00FF7F", "#00FFFF", "#0783FF", "#3535FF", "#AF60FF", "#FF87FF", "#FFB2D8", "#FFDDDD"]},
+    {colorKey: "1803050", colorRamp: ["#0F0700", "#3A0101", "#633100", "#8C8C00", "#5BB700", "#00E000", "#00FF7F", "#00FFFF", "#007FFF", "#0000FF", "#8307FF", "#FF35FF", "#FF60AF", "#FF8787", "#FFD8B2", "#FFFFDD"]},
+    {colorKey: "2403050", colorRamp: ["#0F0700", "#3A3A01", "#316300", "#008C00", "#00B75B", "#00E0E0", "#007FFF", "#0000FF", "#7F00FF", "#FF00FF", "#FF0783", "#FF3535", "#FFAF60", "#FFFF87", "#D8FFB2", "#DDFFDD"]},
+    {colorKey: "3003050", colorRamp: ["#070F00", "#013A01", "#006331", "#008C8C", "#005BB7", "#0000E0", "#7F00FF", "#FF00FF", "#FF007F", "#FF0000", "#FF8307", "#FFFF35", "#AFFF60", "#87FF87", "#B2FFD8", "#DDFFFF"]},
+    {colorKey: "3603050", colorRamp: ["#000F07", "#013A3A", "#003163", "#00008C", "#5B00B7", "#E000E0", "#FF007F", "#FF0000", "#FF7F00", "#FFFF00", "#83FF07", "#35FF35", "#60FFAF", "#87FFFF", "#B2D8FF", "#DDDDFF"]}
 ];
 var symbolRenderFeatureType = " ";
 var canvasId = "canvasColorRamp";   //canvas的名称
@@ -435,9 +435,8 @@ require([
 
                 });
                 $('#uniqueRenderColorRampDropDownList').on('select', function (event) {
-                    var args = event.args;
-                    var index = args.index;
-
+                    var fieldName = $('#uniqueRenderFieldDropDownList').val();
+                    uniqueValueSelectedFieldEvent(fieldName);
                 });
                 //grid中的颜色设置
                 $("#uniqueRenderSymbolsGrid").on('cellclick', function (event) {
@@ -486,11 +485,12 @@ require([
             };
             var source_LabelSize = ["初始项"];
             var source_renderFields = ["初始项"];
+
             var source_ColorRamp = {
                 localdata: colorRampArray,
                 datatype: "array"
             };
-            var dataAdapt = new $.jqx.dataAdapter(source_ColorRamp);
+            var colorRampDataAdapt = new $.jqx.dataAdapter(source_ColorRamp);
 
             function _createElements() {
                 $('#symbolRenderWindow').jqxWindow({
@@ -514,7 +514,7 @@ require([
                         //唯一值
                         $("#uniqueValueRenderPanel").jqxPanel({ width: 310, height: 240, disabled: true});
                         $("#uniqueRenderFieldDropDownList").jqxDropDownList({ source: source_renderFields, selectedIndex: 1, width: '180', height: '25', disabled: false});
-                        $("#uniqueRenderColorRampDropDownList").jqxDropDownList({ source: dataAdapt, selectedIndex: 1, width: '180', height: '25', disabled: false,
+                        $("#uniqueRenderColorRampDropDownList").jqxDropDownList({ source: colorRampHtmlArray, selectedIndex: 1, width: '180', height: '25', disabled: false,
                             renderer: function (index, label, value) {
                                 return colorRampHtmlArray[index];
                             }
@@ -536,13 +536,9 @@ require([
                             columns: [
                                 { text: '符号', datafield: "symbol", width: 60,
                                     cellsrenderer: function (row, columnfield, value, dafaulthtml, columnproperties) {
-                                        var colorRampIndex = $("#uniqueRenderColorRampDropDownList").jqxDropDownList('getSelectedIndex');
-                                        var colorRamp = colorRampArray[colorRampIndex];
-                                        var color = getColorFromColorRamp(row, colorRamp.fromColor, colorRamp.toColor);
-                                        var hex = rgbToHex(color.r, color.g, color.b);
-                                        //填充颜色数组，待渲染
-                                        if (uniqueColorArrayToRender.length != uniqueRenderGridData.length) {
-                                            uniqueColorArrayToRender.push(hex);
+                                        var hex = "#FFFFFF";
+                                        if (uniqueColorArrayToRender.length >= row) {
+                                            var hex = uniqueColorArrayToRender[row]
                                         }
                                         return '<div id = "uniqueRenderGridRow' + row + '"style = "width:100%;height:100%;background-color:' + hex + ';"></div>';
                                     }
@@ -626,15 +622,27 @@ require([
             //唯一值渲染
             else if ($("#jqxTabsSymbolRender").val() == "1") {
                 var fieldName = $("#uniqueRenderFieldDropDownList").val();
-                var defaultSymbol = new SimpleFillSymbol().setStyle(SimpleFillSymbol.STYLE_NULL);
-                defaultSymbol.outline.setStyle(SimpleLineSymbol.STYLE_NULL);
+                var defaultSymbol;
+                switch (symbolRenderFeatureType) {
+                    case "point":
+                    case "multipoint":
+                        defaultSymbol = new SimpleMarkerSymbol(SimpleMarkerSymbol.STYLE_CIRCLE, 15,
+                            new SimpleLineSymbol(SimpleLineSymbol.STYLE_SOLID, new Color([255, 0, 0, 1]), 1),
+                            new Color([255, 0, 0, 1])
+                        );
+                        break;
+                    case "polyline":
+                        defaultSymbol = new SimpleLineSymbol(SimpleLineSymbol.STYLE_SOLID, new Color([255, 0, 0, 1]), 5);
+                        break;
+                    case "polygon":
+                        defaultSymbol = new SimpleFillSymbol().setColor(new Color([255, 0, 0, 0.5]));
+                        break;
+                }
+
                 var renderer = new UniqueValueRenderer(defaultSymbol, fieldName);
                 if (uniqueRenderGridData.length == 0) {
                     return;
                 }
-                //取得色带ColorRamp
-//                var colorRampIndex = $("#uniqueRenderColorRampDropDownList").jqxDropDownList('getSelectedIndex');
-//                var colorRamp = colorRampArray[colorRampIndex];
 
                 for (var i in uniqueRenderGridData) {
                     var record = uniqueRenderGridData[i];   //取得字段内容
@@ -642,29 +650,46 @@ require([
                         break;
                     }
 
-                    //设置渲染颜色
                     var renderColor = hex2rgb(uniqueColorArrayToRender[i]);
                     if (renderColor) {
-                        var fillSymbol = new SimpleFillSymbol().setColor(renderColor);
-                        renderer.addValue(record.value, fillSymbol);
+                        var renderSymbol;
+                        //设置渲染符号
+                        switch (symbolRenderFeatureType) {
+                            case "point":
+                            case "multipoint":
+                                renderSymbol = new SimpleMarkerSymbol(SimpleMarkerSymbol.STYLE_CIRCLE, 15,
+                                    new SimpleLineSymbol(SimpleLineSymbol.STYLE_SOLID, new Color([255, 0, 0, 1]), 1),
+                                    new Color(renderColor)
+                                );
+                                break;
+                            case "polyline":
+                                renderSymbol = new SimpleLineSymbol(SimpleLineSymbol.STYLE_SOLID, new Color(renderColor), 5);
+                                break;
+                            case "polygon":
+                                renderColor.a = 0.5;    //设置透明度
+                                renderSymbol = new SimpleFillSymbol().setColor(new Color(renderColor));
+                                break;
+                        }
+                        renderer.addValue(record.value, renderSymbol);
                     }
                 }
                 uniqueRenderFeatureLayer = new FeatureLayer(mapURL_sudan_FeatureLayer + "/" + currentOptLayerId, {
-                    infoTemplate: new InfoTemplate(" ", fieldName),
+                    //infoTemplate: new InfoTemplate(" ", fieldName),
                     mode: FeatureLayer.MODE_ONDEMAND,
                     outFields: ["*"]
                 });
                 uniqueRenderFeatureLayer.setRenderer(renderer);
                 map.addLayer(uniqueRenderFeatureLayer);
 
-                var extent = uniqueRenderFeatureLayer.fullExtent;
-                map.setExtent(extent);
+//                var extent = uniqueRenderFeatureLayer.fullExtent;
+//                map.setExtent(extent);
             }
         }
 
         //唯一值渲染字段选择后，计算数据并显示
         function uniqueValueSelectedFieldEvent(fieldName) {
             uniqueAttrStatisticByFieldNameArray = new Array();
+            uniqueColorArrayToRender = new Array();
 
             if (uniqueRenderLayerAttributeArray.length == 0) {
                 return;
@@ -683,6 +708,7 @@ require([
                 }
             }
             uniqueRenderGridData = new Array();
+            //将统计结果push进数组
             for (var key in uniqueAttrStatisticByFieldNameArray) {
                 var value = uniqueAttrStatisticByFieldNameArray[key];
                 if (value) {
@@ -692,6 +718,30 @@ require([
                     uniqueRenderGridData.push(row);
                 }
             }
+            //从色带中抽取颜色值，放入数组
+            var colorRampIndex = $("#uniqueRenderColorRampDropDownList").jqxDropDownList('getSelectedIndex');
+            var colorRampRecord = colorRampArray[colorRampIndex];
+
+            //如果是渐变色
+            if (colorRampRecord) {
+                var colorRampLength = colorRampRecord.colorRamp.length;
+                if (colorRampLength == 2) {
+                    for (var row in uniqueRenderGridData) {
+                        var color = getColorFromToColor(row, colorRampRecord.colorRamp[0], colorRampRecord.colorRamp[1]);
+                        var hex = rgbToHex(color.r, color.g, color.b);
+                        //填充颜色数组，待渲染
+                        uniqueColorArrayToRender.push(hex);
+                    }
+                } else if (colorRampLength > 2) {
+                    for (var row in uniqueRenderGridData) {
+                        var hex = colorRampRecord.colorRamp[row%colorRampLength];
+                        //var hex = rgbToHex(color.r, color.g, color.b);
+                        //填充颜色数组，待渲染
+                        uniqueColorArrayToRender.push(hex);
+                    }
+                }
+            }
+            //设置grid数据
             var source = {
                 localdata: uniqueRenderGridData,
                 datatype: "array",
@@ -701,6 +751,7 @@ require([
                     {name: 'count', type: 'number'}
                 ]
             };
+
             var dataAdapter = new $.jqx.dataAdapter(source);
             $("#uniqueRenderSymbolsGrid").jqxGrid({
                 source: dataAdapter
@@ -730,7 +781,7 @@ require([
                     uniqueRenderLayerAttributeArray.push(attr);
                 }
                 symbolRenderFeatureType = featureType;
-                switch (featureType){
+                switch (featureType) {
                     case "point":
                     case "multipoint":
                         featureType = "点";
@@ -742,27 +793,23 @@ require([
                         featureType = "面";
                         break;
                 }
-                $("#symbolRenderCurLayerName").text(currentLayerName+" - "+featureType); //选择的图层
+                $("#symbolRenderCurLayerName").text(currentLayerName + " - " + featureType); //选择的图层
             }
         }
 
         //设置颜色带的下拉列表
         function setColorRampDropDownList() {
             colorRampHtmlArray = [];
-
             for (var i in colorRampArray) {
-                var canvasHtml = "<div><canvas id='" + canvasId + i + "' width='145' height='25' style='border:1px solid #c3c3c3;'>浏览器不支持，请升级。</canvas></div>";
-                //var index = colorRampArray[i].index;
-                var fromColor = colorRampArray[i].fromColor;
-                var toColor = colorRampArray[i].toColor;
-                setColorRamp(canvasId + i, fromColor, toColor);
-
+//                var canvasHtml = "<div><canvas id='" + canvasId + i + "' width='145' height='25' style='border:1px solid #c3c3c3;'>浏览器不支持，请升级。</canvas></div>";
+                var colorKey = colorRampArray[i].colorKey;
+                var canvasHtml = '<div><img height="25" width="200" src="images/' + colorKey + '.png"/></div>';
                 colorRampHtmlArray.push(canvasHtml);
             }
         }
 
         //从色带中通过index取过渡色
-        function getColorFromColorRamp(index, fromColorVal, toColorVal) {
+        function getColorFromToColor(index, fromColorVal, toColorVal) {
             var fromColor = new Color(fromColorVal);
             var toColor = new Color(toColorVal);
             var red = fromColor.r + Math.floor((toColor.r - fromColor.r) * index / uniqueRenderGridData.length);
@@ -1061,7 +1108,7 @@ require([
 
         //Hex转RGB
         function hex2rgb(hex) {
-            if (hex.length < 7) {
+            if (!hex || hex.length < 7) {
                 return;
             }
             return new Color(['0x' + hex[1] + hex[2] | 0, '0x' + hex[3] + hex[4] | 0, '0x' + hex[5] + hex[6] | 0]);
