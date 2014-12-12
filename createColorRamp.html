@@ -1,0 +1,40 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+        "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<meta name="viewport" content="initial-scale=1, maximum-scale=1,user-scalable=no"/>
+<title>颜色生成</title>
+<body>
+<br>
+<br>
+<div>起始颜色：<input type="text" id = "fromColor" value="#ff0000"></div>
+<div>终止颜色：<input type="text" id = "toColor" value="#00ff00"></div>
+<div><input type="submit" id = "submit" value="生成" onclick="createColorRamp()"></div>
+<br>
+<br>
+<br>
+<br>
+<canvas id="myCanvas" width="200" height="50" style="border:1px solid #c3c3c3;">
+    浏览器不支持Canvas，请升级或者更换浏览器。
+</canvas>
+
+
+<script type="text/javascript">
+    function createColorRamp(){
+        var fromColor = document.getElementById("fromColor").value;
+        var toColor = document.getElementById("toColor").value;
+
+        var c=document.getElementById("myCanvas");
+        var cxt=c.getContext("2d");
+        var grd=cxt.createLinearGradient(0,0,200,50);
+        grd.addColorStop(0,fromColor);
+        grd.addColorStop(1,toColor);
+        cxt.fillStyle=grd;
+        cxt.fillRect(0,0,200,50);
+    }
+
+
+</script>
+
+</body>
+</html>
