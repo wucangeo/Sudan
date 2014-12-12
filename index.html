@@ -21,6 +21,7 @@
             background-color: #FFF;
             overflow: hidden;
             font-family: "Trebuchet MS";
+            z-index: -1;
         }
 
         #sudan_layerListDiv {
@@ -98,12 +99,12 @@
     <script type="text/javascript" src="http://localhost:83/jqwidgets/jqxgrid.selection.js"></script>
     <script type="text/javascript" src="http://localhost:83/jqwidgets/jqxgrid.pager.js"></script>
     <script type="text/javascript" src="http://localhost:83/jqwidgets/jqxgrid.columnsresize.js"></script>
+    <script type="text/javascript" src="http://localhost:83/jqwidgets/jqxgrid.sort.js"></script>
     <script type="text/javascript" src="http://localhost:83/jqwidgets/jqxdata.js"></script>
     <script type="text/javascript" src="http://localhost:83/jqwidgets/jqxcolorpicker.js"></script>
     <script type="text/javascript" src="http://localhost:83/jqwidgets/jqxdropdownbutton.js"></script>
     <script type="text/javascript" src="http://localhost:83/jqwidgets/jqxnumberinput.js"></script>
-    <script type="text/javascript" src="http://localhost:83/jqwidgets/globalization/globalize.culture.zh-CN.js"></script>
-    <script type="text/javascript" src="http://localhost:83/jqwidgets/globalization/globalize.js"></script>
+    <script type="text/javascript" src="http://localhost:83/jqwidgets/jqxtabs.js"></script>
 
     <!--<link rel="stylesheet" href="js/jquery-ui-1.11.2/jquery-ui.css">-->
     <!--<script src="js/jquery-ui-1.11.2/jquery-ui.js"></script>-->
@@ -111,12 +112,6 @@
     <script src="js/map_sudan.js" type="text/javascript"></script>
     <!--<script src="js/map_sudan_orchk.js" type="text/javascript"></script>-->
 
-    <script type="text/javascript">
-        dojoConfig = {
-            locale: "fr",
-            parseOnLoad: true
-        };
-    </script>
 </head>
 
 <body>
@@ -135,7 +130,7 @@
 <div id="attributeContainer">
     <div id="attributeWindow">
         <div id="attributeHeader">
-            <span id="attributeContainerTitle" style="float: top">图层属性</span>
+            <span id="attributeContainerTitle">图层属性</span>
         </div>
         <div id='jqxWidgetGrid' style="font-size: 13px; font-family: Verdana;margin: 3px;">
             <div id="attributeGrid">
@@ -149,7 +144,7 @@
 <div id="labelSettingContainer">
     <div id="labelSettingWindow">
         <div id="customWindowHeader">
-            <span id="labelSettingContainerTitle" style="float: top">设置标注字段</span>
+            <span id="labelSettingContainerTitle">设置标注字段</span>
         </div>
         <div>
             <div style="margin-top: 10px;">
@@ -191,7 +186,7 @@
 <div id="symbolRenderContainer">
     <div id="symbolRenderWindow">
         <div id="symbolRenderWindowHeader">
-            <span id="symbolRenderContainerTitle" style="float: top">设置标注字段</span>
+            <span id="symbolRenderContainerTitle">图层符号渲染</span>
         </div>
         <div>
             <div style="margin-top: 10px;">
@@ -200,58 +195,73 @@
             </div>
             <br>
 
-            <div id="singleSymbolRender" style="margin: 10px;">
-                <span id="singleSymbolRenderRadio">单一符号渲染：</span>
-                <span id="singleSymbolBlock"></span>
-            </div>
-            <div id="SingleSymbolRenderPanel" style="margin: 10px;">
-                <div id="SingleSymbolColor" style="margin: 10px;">
-                    <div style="float: left;margin-left: 0px;margin-top: 5px;">填充颜色：</div>
-                    <div style="margin-right: 0px; float: right;" id="SingleSymbolColorDropDown">
-                        <div style="padding: 3px;">
-                            <div id="setSingleSymbolColorPicker"></div>
+            <div id="jqxTabsContainer" style="float: left;margin-top: 10px;">
+                <div id="jqxTabsSymbolRender">
+                    <ul style="margin: 10px;">
+                        <li>单一值渲染</li>
+                        <li>唯一值渲染</li>
+                    </ul>
+                    <!--单一值符号渲染-->
+                    <div id="SingleSymbolRenderPanel" style="margin: 10px;">
+                        <div id="SingleSymbolColor" style="margin: 10px;">
+                            <div style="float: left;margin-left: 0px;margin-top: 5px;">填充颜色：</div>
+                            <div style="margin-right: 0px; float: right;" id="SingleSymbolColorDropDown">
+                                <div style="padding: 3px;">
+                                    <div id="setSingleSymbolColorPicker"></div>
+                                </div>
+                            </div>
+                        </div>
+                        <br>
+
+                        <div id="SingleSymbolColorOutline" style="margin: 10px;margin-top: 20px">
+                            <div style="float: left;margin-left: 0px;margin-top: 5px;">边线颜色：</div>
+                            <div style="margin-right: 0px; float: right;" id="SingleSymbolColorOutlineDropDown">
+                                <div style="padding: 3px;">
+                                    <div id="setSingleSymbolColorOutlinePicker"></div>
+                                </div>
+                            </div>
+                        </div>
+                        <br>
+
+                        <div id="SingleSymbolSize" style="margin: 10px;margin-top: 20px;">
+                            <div style="float: left;margin-left: 0px;margin-top: 5px;">大小：</div>
+                            <div id="setSingleSymbolSizeNumber" style="margin-right: 0px; float: right;"></div>
                         </div>
                     </div>
-                </div>
-                <br>
-                <div id="SingleSymbolColorOutline" style="margin: 10px;">
-                    <div style="float: left;margin-left: 0px;margin-top: 5px;">边线颜色：</div>
-                    <div style="margin-right: 0px; float: right;" id="SingleSymbolColorOutlineDropDown">
-                        <div style="padding: 3px;">
-                            <div id="setSingleSymbolColorOutlinePicker"></div>
+                    <!--唯一值符号渲染-->
+                    <div id="uniqueValueRenderPanel" style="margin: 10px;">
+                        <div style="margin: 5px;">
+                            <div style="margin: 5px;float: left;line-height: 25px;">渲染字段：</div>
+                            <div style="margin: 5px;float: right;" id="uniqueRenderFieldDropDownList"></div>
                         </div>
+                        <div style="margin: 5px;">
+                            <div style="margin: 5px;float: left;line-height: 25px;">渲染色系：</div>
+                            <div style="margin: 5px;float: right;" id="uniqueRenderColorRampDropDownList"></div>
+                        </div>
+                        <div id="uniqueRenderSymbolsGrid" style="margin: 10px;margin-top: 20px"></div>
                     </div>
                 </div>
-                <br>
-
-                <div id="SingleSymbolSize" style="margin: 10px;margin-top: 20px;">
-                    <div style="float: left;margin-left: 0px;margin-top: 5px;">大小：</div>
-                    <div id="setSingleSymbolSizeNumber" style="margin-right: 0px; float: right;"></div>
-                </div>
-            </div>
-
-            <div style="margin: 10px;" id="uniqueValueRenderRadio">唯一值渲染</div>
-            <div id="uniqueValueRenderPanel" style="margin: 10px;">
-                <div style="margin: 5px;">
-                    <div style="margin: 5px;float: left;line-height: 25px;">渲染字段：</div>
-                    <div style="margin: 5px;float: right;" id="uniqueRenderFieldDropDownList"></div>
-                </div>
-                <div style="margin: 5px;">
-                    <div style="margin: 5px;float: left;line-height: 25px;">渲染色系：</div>
-                    <div style="margin: 5px;float: right;" id="uniqueRenderColorDropDownList"></div>
-                </div>
-                <div id="uniqueRenderSymbolsGrid"></div>
-            </div>
-            <div>
-                <div style="margin-top: 10px;">
+                <div>
+                    <div style="margin-top: 10px;">
                     <span style="float: left;margin-left: 20px;"><input type="Button" value="确定"
                                                                         id="symbolRenderSubmitButton"/></span>
                     <span style="float: right;margin-right: 20px;"><input type="button" value="取消"
                                                                           id="symbolRenderCancelButton"/></span>
+                    </div>
                 </div>
             </div>
         </div>
 
+    </div>
+</div>
+
+<!--唯一值渲染颜色选择-->
+<div id="colorPickerWindowContainer">
+    <div id="ColorPickerWidgetWindow">
+        <div>
+            <div id="uniqueRenderColorPicker" style="margin: 0px;">
+            </div>
+        </div>
     </div>
 </div>
 
