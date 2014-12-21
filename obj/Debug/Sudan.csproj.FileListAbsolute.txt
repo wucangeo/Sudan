@@ -1,0 +1,9 @@
+D:\Develop\Workspaces\VS2010\Sudan\Sudan\bin\Sudan.dll
+D:\Develop\Workspaces\VS2010\Sudan\Sudan\bin\Sudan.pdb
+D:\Develop\Workspaces\VS2010\Sudan\Sudan\obj\Debug\Sudan.dll
+D:\Develop\Workspaces\VS2010\Sudan\Sudan\obj\Debug\Sudan.pdb
+D:\Develop\GitHub\Sudan\bin\Sudan.dll
+D:\Develop\GitHub\Sudan\bin\Sudan.pdb
+D:\Develop\GitHub\Sudan\obj\Debug\Sudan.dll
+D:\Develop\GitHub\Sudan\obj\Debug\Sudan.pdb
+D:\Develop\GitHub\Sudan\obj\Debug\Sudan.csprojResolveAssemblyReference.cache
