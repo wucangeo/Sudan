@@ -105,6 +105,8 @@
     <script type="text/javascript" src="http://localhost:83/jqwidgets/jqxnumberinput.js"></script>
     <script type="text/javascript" src="http://localhost:83/jqwidgets/jqxtabs.js"></script>
     <script type="text/javascript" src="http://localhost:83/jqwidgets/jqxtreegrid.js"></script>
+    <script type="text/javascript" src="http://localhost:83/jqwidgets/jqxinput.js"></script>
+    <script type="text/javascript" src="http://localhost:83/jqwidgets/jqxgrid.edit.js"></script>
 
     <script src="js/map_sudan.js" type="text/javascript"></script>
 </head>
@@ -187,13 +189,14 @@
         </div>
         <div>
             <div style="margin-top: 10px;">
-                <span style="float: left;margin-left: 10px">当前图层：</span>
-                <span id="symbolRenderCurLayerName" style="float: left;margin-left: 10px;"></span>
+                <span style="float: left;margin-left: 5px">当前图层：</span>
+                <span id="symbolRenderCurLayerName" style="float: left;margin-left: 5px;"></span>
             </div>
             <br/>
-            <div style="margin: 5px;">
-                 <div style="margin: 5px;float: left;line-height: 25px;">渲染配置：</div>
-                 <div style="margin: 5px;float: right;" id="symbolRenderConfigDropDown"></div>
+            <div style="margin-top: 5px;">
+                 <div style="margin-left: 5px;float: left;line-height: 25px;">渲染配置：</div>
+                 <div style="margin-left: 5px;float: left;" id="symbolRenderConfigDropDown"></div>
+                 <div style="margin-right: 5px;float: right;"><input type="button" value="删除"id="symbolRenderConfigDelete"/></div>
             </div>
             <br/>
             <div id="jqxTabsContainer" style="float: left;margin-top: 10px;">
@@ -267,7 +270,26 @@
         </div>
     </div>
 </div>
+<!--保存渲染设置命名window-->
+  <div id="renderConfigNameWindowContainer">
+    <div id="renderConfigNameWindow">
+      <div id="renderConfigNameWindowHeader">
+        <span id="renderConfigNameContainerTitle">设置名称</span>
+      </div>
 
+      <div>
+        <div style="margin: 5px;">
+        <div style="margin-left: 5px;float: left;line-height: 25px;">名称：</div>
+        <div style="margin-right: 5px;float: right;"><input type="text" id="renderConfigNameInput"/></div>
+        </div>
+        <br />
+        <div style="margin-top: 20px;">
+          <span style="float: left;margin-left: 20px;"><input type="button" value="确定" id="renderConfigNameSubmit" /></span>
+          <span style="float: right;margin-right: 20px;"><input type="button" value="取消" id="renderConfigNameCancel" /></span>
+        </div>
+      </div>
+    </div>
+  </div>
 <!--属性编辑框-->
   <div id="attrEditWindowContainer">
     <div id="attrFeatureEditWindow">

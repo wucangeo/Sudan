@@ -37,7 +37,6 @@ var colorRampArray = [          //唯一值渲染颜色带 取色网站：http:/
     {colorKey: "3603050", colorRamp: ["#000F07", "#013A3A", "#003163", "#00008C", "#5B00B7", "#E000E0", "#FF007F", "#FF0000", "#FF7F00", "#FFFF00", "#83FF07", "#35FF35", "#60FFAF", "#87FFFF", "#B2D8FF", "#DDDDFF"]}
 ];
 var symbolRenderFeatureType = " ";
-var canvasId = "canvasColorRamp";   //canvas的名称
 var colorRampHtmlArray = [];          //存储Canvas的html代码
 var uniqueRenderLayerAttributeArray = [];       //图层的属性表
 var uniqueAttrStatisticByFieldNameArray = [];        //按照字段名称统计内容个数
@@ -48,6 +47,7 @@ var uniqueCurrOptRowIndex = -1;       //当前正在操作的行index
 var uniqueColorArrayToRender = new Array();     //待渲染的颜色数组
 //渲染设置保存
 var symbolRenderConfigData;     //渲染设置保存
+var ifRenderConfig = false;     //是否是渲染配置
 
 require([
         "esri/map",
@@ -100,7 +100,7 @@ require([
         });
 
         on(map, "extent-change", function () {
-            console.log("extent-change event", map.extent);
+            //console.log("extent-change event", map.extent);
         });
 
         function initMap() {
@@ -121,7 +121,7 @@ require([
                 if (childrenLayerIndex > childrenLayerCount) { //包含图层组
                     layerHtml += "</ul></li>";    //如果是图层组，则添加ul标签
                 }
-                layerHtml += "<li ";
+                layerHtml += "<li "; //id='layer" + childrenLayerIndex + "'";
                 if (info.defaultVisibility) {
                     layerVisibleArr.push(info.id);
                 }
@@ -172,7 +172,6 @@ require([
                     $("#sudan_layerListDiv li").on('mousedown', function (event) {
                         var target = $(event.target).parents('li:first')[0];
 
-
                         //判断是否为右键菜单
                         var rightClick = isRightClick(event);
                         if (rightClick && target != null) {
@@ -197,6 +196,7 @@ require([
                         case "openAttrTable":
                             if (!$('#attributeWindow').jqxWindow('isOpen')) {
                                 $('#attributeWindow').jqxWindow('open');
+                                $('#attributeWindow').jqxWindow({ position: {x: 250, y: 130}});
                             }
                             getLayerAttributeArr();
                             $('#attributeContainerTitle').text(currentLayerName);   //设置当前图层名称
@@ -204,15 +204,17 @@ require([
                         //设置图层标注
                         case "setLabelField":
                             $('#labelSettingWindow').jqxWindow('open');
-                            setFieldsListDropDown();
+                            $('#labelSettingWindow').jqxWindow({position: {x: 250, y: 130}});
+                            setLabelFieldsListDropDown();
                             $("#labelSettingCurLayerName").text(currentLayerName); //选择的图层
                             break;
                         //设置图层渲染
                         case "setRenderSymbol":
-                            getCurrLayerAttribute();        //取得当前图层的属性表
+                            getCurrLayerAttribute(currentOptLayerId);        //取得当前图层的属性表
                             $('#symbolRenderWindow').jqxWindow('open');
                             setUniqueRenderFieldsListDropDown();        //设置唯一值渲染字段
-
+                            $('#symbolRenderWindow').jqxWindow({position: {x: 250, y: 130}});
+                            $("#symbolRenderConfigDropDown").jqxDropDownList('selectIndex', 0);
                             break;
                     }
                 });
@@ -308,7 +310,7 @@ require([
                 });
                 //打开windows事件
                 $('#labelSettingWindow').on('open', function (event) {
-                    setFieldsListDropDown();
+                    setLabelFieldsListDropDown();
                 });
                 //颜色选择事件
                 $('#setLabelColorPicker').bind('colorchange', function (event) {
@@ -328,7 +330,7 @@ require([
                         $("#labelFieldDropDownList").jqxDropDownList({ source: source_Fileds, selectedIndex: 0, width: '230', height: '25', disabled: true});
                         $('#showLabelSubmitButton').jqxButton({ width: '80px', disabled: false });
                         $('#showLabelCancelButton').jqxButton({ width: '80px', disabled: false });
-                        $("#setLabelColorPicker").jqxColorPicker({ color: "0000ff", colorMode: 'hue', width: 220, height: 220});
+                        $("#setLabelColorPicker").jqxColorPicker({ color: "0000ff", colorMode: 'saturation', width: 220, height: 220});
                         $("#labelColorDropDown").jqxDropDownButton({ width: '150px', height: '25px', disabled: true});
                         $("#labelColorDropDown").jqxDropDownButton('setContent', getLabelColorByDropDown(new $.jqx.color({ hex: "0000ff" })));
                         $("#setLabelSizeDropDown").jqxDropDownList({ source: source_LabelSize, selectedIndex: 9, width: '150px', height: '25px', disabled: true})
@@ -360,7 +362,7 @@ require([
         }
 
         //设置字段下拉列表
-        function setFieldsListDropDown() {
+        function setLabelFieldsListDropDown() {
             layerFieldsSource = [];
             if (!layerFieldsInfo || layerFieldsInfo == "failure" || layerFieldsInfo.length == 0) {
                 layerFieldsSource.push("无法获取图层信息");
@@ -392,6 +394,9 @@ require([
             }
             //取得设置信息
             var selectDropIndex = $("#labelFieldDropDownList").jqxDropDownList('getSelectedIndex');
+            if (selectDropIndex > layerFieldsInfo.length) {
+                return;
+            }
             var labelField = layerFieldsInfo[selectDropIndex][0];
             //var labelColor = $("#labelColorDropDown").jqxDropDownButton('getContent')[0].innerText;
             var labelColor = $("#setLabelColorPicker").jqxColorPicker('getColor');
@@ -448,10 +453,6 @@ require([
                     uniqueValueSelectedFieldEvent(fieldName);
                 });
                 //色带事件
-                $('#uniqueRenderColorRampDropDownList').on('open', function (event) {
-                    //setColorRampDropDownList();                 //设置唯一值渲染色带
-
-                });
                 $('#uniqueRenderColorRampDropDownList').on('select', function (event) {
                     var fieldName = $('#uniqueRenderFieldDropDownList').val();
                     uniqueValueSelectedFieldEvent(fieldName);
@@ -482,27 +483,106 @@ require([
                         uniqueColorArrayToRender[uniqueCurrOptRowIndex] = "#" + color.hex;
                     }
                 });
+                //=========渲染保存事件===============
+                //渲染配置下拉选择事件
+                $('#symbolRenderConfigDropDown').on('select', function (event) {
+                    var args = event.args;
+                    if (args) {
+                        var index = args.index;
+                        if (!symbolRenderConfigData || symbolRenderConfigData.length < index) {
+                            alert("数据获取错误，请刷新重试。");
+                            return;
+                        }
+                        if (index != 0) {
+                            $("#labelSettingWindow").jqxWindow("open");
+                            $("#labelSettingWindow").jqxWindow({position: {x: 250, y: 585}});
+                            //$("#sudan_layerListDiv").jqxTree('checkItem', $("#" + layerId)[0], true);
+                            var selectConfig = symbolRenderConfigData[index];
+                            if (!selectConfig) {
+                                return;
+                            }
+                            currentOptLayerId = selectConfig["renderLayerId"];
+                            layerFieldsInfo = getLayerFiledListContent(currentOptLayerId);
+//                            if(layerFieldsInfo){
+                            setTimeout(function () {
+                                getCurrLayerAttribute(currentOptLayerId);
+                            }, 500);
+                            setTimeout(function () {
+                                setSymbolRenderConfig(index);
+                            }, 500);
+//                            }
+
+                        } else {
+                            //移除之前显示的标注图层
+                            if (labelsToLayer) {
+                                map.removeLayer(labelsToLayer);
+                            }
+                            if (layerToLabels) {
+                                map.removeLayer(layerToLabels);
+                            }
+                            $("#showLabelCheckBox").jqxCheckBox('uncheck');
+                            //移除已经渲染的图层
+                            map.graphics.clear();
+                            if (renderLayer) {
+                                map.removeLayer(renderLayer);
+                            }
+                            if (uniqueRenderFeatureLayer) {
+                                map.removeLayer(uniqueRenderFeatureLayer);
+                            }
+                        }
+
+                    }
+                });
+                //删除按钮
+                $('#symbolRenderConfigDelete').on('click', function () {
+                    var valueId = $('#symbolRenderConfigDropDown').jqxDropDownList('val');
+                    if (valueId) {
+                        DeleteRenderConfigById(valueId);
+                        $('#symbolRenderConfigDropDown').jqxDropDownList('selectIndex', 0);
+                    }
+                });
                 //预览按钮
                 $("#symbolRenderPreviewButton").on('click', function () {
                     if (uniqueRenderFeatureLayer) {
                         map.removeLayer(uniqueRenderFeatureLayer);
                     }
-                    setLayerSymbolRender();
+                    setLayerSymbolRender(false);
                 });
                 //保存设置按钮
                 $("#symbolRenderConfigSaveButton").on('click', function () {
-                    SaveCurrentRenderConfig();
+                    var renderWindowPosition = $("#symbolRenderWindow").jqxWindow('position');
+                    var renderWindowWidth = $("#symbolRenderWindow").jqxWindow('width');
+
+                    $("#renderConfigNameWindow").jqxWindow({
+                        position: {x: renderWindowPosition.x + renderWindowWidth + 4, y: renderWindowPosition.y + 250}
+                    });
+                    $("#renderConfigNameWindow").jqxWindow("open");
                 });
-                //取消
+                //取消渲染按钮
                 $("#symbolRenderCancelButton").on('click', function () {
                     $('#symbolRenderWindow').jqxWindow('close');
                     map.removeLayer(uniqueRenderFeatureLayer);
                     map.graphics.clear();
                 });
+                //渲染命名设置窗体确定事件
+                $("#renderConfigNameSubmit").on('click', function () {
+                    var name = $("#renderConfigNameInput").val();
+                    if (name.length < 1) {
+                        alert("请输入渲染设置名称。");
+                    } else {
+                        SaveCurrentRenderConfig();
+                        $("#renderConfigNameWindow").jqxWindow("close");
+                    }
+                });
+                //渲染命名设置窗体取消事件
+                $("#renderConfigNameCancel").on('click', function () {
+                    $("#renderConfigNameWindow").jqxWindow("close");
+                });
 
                 //打开关闭windows事件
                 $('#symbolRenderWindow').on('open', function (event) {
-                    SetSymbolRenderDropDown();  //设置渲染设置下拉框数据
+                    $("#symbolRenderConfigDropDown").jqxDropDownList('selectIndex', 0);
+                    //SetSymbolRenderDropDown();  //设置渲染设置下拉框数据
                     setUniqueRenderFieldsListDropDown();        //设置唯一值渲染字段
                 });
             };
@@ -528,16 +608,17 @@ require([
                     width: 350, height: 450, resizable: false, autoOpen: false, position: {x: 250, y: 130},
                     initContent: function () {
                         $("#jqxTabsSymbolRender").jqxTabs({height: 290, width: 335});
-                        $("#symbolRenderConfigDropDown").jqxDropDownList({selectedIndex: 0,displayMember: "name", width: '240', height: '25', disabled: false});
+                        $("#symbolRenderConfigDropDown").jqxDropDownList({selectedIndex: 0, displayMember: "name", valueMember: "id", width: '210', height: '25', disabled: false});
+                        $('#symbolRenderConfigDelete').jqxButton({ width: '40px', disabled: false });
 
                         //单一符号
                         $("#SingleSymbolRenderPanel").jqxPanel({ width: 310, height: 125, disabled: true});
 
-                        $("#setSingleSymbolColorPicker").jqxColorPicker({ color: "137013", colorMode: 'hue', width: 220, height: 220});
+                        $("#setSingleSymbolColorPicker").jqxColorPicker({ color: "137013", colorMode: 'saturation', width: 220, height: 220});
                         $("#SingleSymbolColorDropDown").jqxDropDownButton({ width: '180px', height: '25px'});
                         $("#SingleSymbolColorDropDown").jqxDropDownButton('setContent', getLabelColorByDropDown(new $.jqx.color({ hex: "137013" })));
 
-                        $("#setSingleSymbolColorOutlinePicker").jqxColorPicker({ color: "ff0000", colorMode: 'hue', width: 220, height: 220});
+                        $("#setSingleSymbolColorOutlinePicker").jqxColorPicker({ color: "ff0000", colorMode: 'saturation', width: 220, height: 220});
                         $("#SingleSymbolColorOutlineDropDown").jqxDropDownButton({ width: '180px', height: '25px'});
                         $("#SingleSymbolColorOutlineDropDown").jqxDropDownButton('setContent', getLabelColorByDropDown(new $.jqx.color({ hex: "ff0000" })));
 
@@ -585,6 +666,15 @@ require([
                         });
                     }
                 });
+                //渲染名称设置window
+                $("#renderConfigNameWindow").jqxWindow({
+                    width: 240, height: 110, autoOpen: false,
+                    initContent: function () {
+                        $("#renderConfigNameInput").jqxInput({ height: 25, width: 160, minLength: 1});
+                        $('#renderConfigNameSubmit').jqxButton({ width: '80px', disabled: false });
+                        $('#renderConfigNameCancel').jqxButton({ width: '80px', disabled: false });
+                    }
+                });
             };
             return {
                 init: function () {
@@ -610,11 +700,14 @@ require([
         }
 
         //开始符号渲染
-        function setLayerSymbolRender() {
+        function setLayerSymbolRender(ifConfig) {
             map.graphics.clear();
             //移除已经渲染的图层
             if (renderLayer) {
                 map.removeLayer(renderLayer);
+            }
+            if (uniqueRenderFeatureLayer) {
+                map.removeLayer(uniqueRenderFeatureLayer);
             }
             if (!layerFieldsInfo || layerFieldsInfo == "failure" || layerFieldsInfo.length == 0) {
                 return;
@@ -623,6 +716,9 @@ require([
             //单一值渲染
             if ($("#jqxTabsSymbolRender").val() == "0") {
                 var symbolColor = $("#setSingleSymbolColorPicker").jqxColorPicker('getColor');
+                if (!symbolColor) {
+                    return;
+                }
                 symbolColor.a = 1;  //恢复默认颜色透明度为1
                 var symbolColorOutline = $("#setSingleSymbolColorOutlinePicker").jqxColorPicker('getColor');
                 var symbolSize = $("#setSingleSymbolSizeNumber").jqxNumberInput('val');
@@ -648,8 +744,10 @@ require([
                     }
 
                     if (preOptLayerId != currentOptLayerId) {
-                        var extent = esri.graphicsExtent(map.graphics.graphics);
-                        map.setExtent(extent.expand(1.5), true);
+                        if (!ifConfig) {
+                            var extent = esri.graphicsExtent(map.graphics.graphics);
+                            map.setExtent(extent.expand(1.5), true);
+                        }
                         preOptLayerId = currentOptLayerId;
                     }
                 }
@@ -795,7 +893,7 @@ require([
         }
 
         //取得图层的属性表
-        function getCurrLayerAttribute() {
+        function getCurrLayerAttribute(currentOptLayerId) {
             uniqueRenderLayerAttributeArray = new Array();
             //查询要素并渲染
             var queryTask = new QueryTask(mapURL_sudan + "/" + currentOptLayerId);  //当前图层url
@@ -884,6 +982,32 @@ require([
                     success: function (msg) {
                         var riskResultJsonStr = msg.d;
                         symbolRenderConfigData = JSON.parse(riskResultJsonStr).rows;
+                        var configChoose = {"name": "请选择渲染配置", "id": -1};
+                        symbolRenderConfigData.splice(0, 0, configChoose);
+                        SetSymbolRenderDropDown();
+                    }
+                });
+            });
+        }
+
+        //获取渲染设置
+        function DeleteRenderConfigById(id) {
+            //使用jQuery获取数据
+            $(document).ready(function () {
+                $.ajax({
+                    type: "POST",
+                    url: "CustomRenderMap.asmx/DeleteRenderConfigById",
+                    data: "{id:" + id + "}",
+                    contentType: "application/json; charset=utf-8",
+                    dataType: "json",
+                    success: function (msg) {
+                        var result = msg.d;
+                        if (result == "1") {        //如果已经顺利删除一行
+                            GetRenderConfigFromData();      //如果保存成功，则重新获取数据，添加到界面
+                            alert("删除成功");
+                        } else {
+                            alert("删除失败，请刷新重试。");
+                        }
                     }
                 });
             });
@@ -897,37 +1021,211 @@ require([
             var source = {
                 datatype: "json",
                 datafields: [
-                    { name: 'name' }
+                    { name: 'name'},
+                    { name: 'id'}
                 ],
                 localdata: symbolRenderConfigData
             };
             var dataAdapter = new $.jqx.dataAdapter(source);
             $("#symbolRenderConfigDropDown").jqxDropDownList({source: dataAdapter});
         }
+
         //保存当前渲染设置
-        function SaveCurrentRenderConfig(){
-            var name = $("#symbolRenderConfigDropDown").val();      //名称
+        function SaveCurrentRenderConfig() {
+            //var date = new Date();
+            //var name = currentLayerName + "-" + date.getFullYear() + addZero(String(date.getMonth() + 1), 2) + addZero(String(date.getDate()), 2);      //名称
+            var name = currentLayerName + "-" + $('#renderConfigNameInput').val();
             //标注层
             var labelLayerId = -1;                 //标注图层id
-            if(layerToLabels){
+            var ifShowLabel = $("#showLabelCheckBox").val();
+            if (ifShowLabel || ifShowLabel == "") {
+                ifShowLabel = false;
+            }
+            if (layerToLabels) {
                 labelLayerId = layerToLabels.id;
             }
             var labelFieldId = $("#labelFieldDropDownList").jqxDropDownList('getSelectedIndex');    //标注图层字段
+            if (!labelFieldId) {
+                labelFieldId = -1;
+            }
             var labelColor = $("#setLabelColorPicker").jqxColorPicker('getColor');          //标注图层颜色
+            if (!labelColor) {
+                labelColor = "";
+            }
+            if (labelColor) {
+                labelColor = labelColor.hex;
+            } else {
+                labelColor = "";
+            }
             var labelFontSize = $("#setLabelSizeDropDown").jqxDropDownList("getSelectedIndex");
+            if (!labelFontSize) {
+                labelFontSize = -1;
+            }
+
             //渲染
             var renderLayerId = currentOptLayerId;      //渲染图层id
             var renderType = $("#jqxTabsSymbolRender").jqxTabs('val');      //渲染类型，0单一值，1唯一值
+            var featureType = symbolRenderFeatureType;
             //单一值
             var singleFillColor = $("#setSingleSymbolColorPicker").jqxColorPicker('getColor');
+            if (singleFillColor) {
+                singleFillColor = singleFillColor.hex;
+            } else {
+                singleFillColor = "";
+            }
             var singleLineColor = $("#setSingleSymbolColorOutlinePicker").jqxColorPicker('getColor');
+            if (singleLineColor) {
+                singleLineColor = singleLineColor.hex;
+            } else {
+                singleLineColor = "";
+            }
             var singleLineWidth = $("#setSingleSymbolSizeNumber").jqxNumberInput('val');
             var uniqueFieldId = $("#uniqueRenderFieldDropDownList").jqxDropDownList("getSelectedIndex");
             var uniqueColorRampId = $("#uniqueRenderColorRampDropDownList").jqxDropDownList("getSelectedIndex");
             var curExtent = map.extent;
             var xmax = curExtent.xmax;
+            var xmin = curExtent.xmin;
+            var ymax = curExtent.ymax;
+            var ymin = curExtent.ymin;
 
 
+            var param = {};
+            param["name"] = name;
+            param["ifShowLabel"] = ifShowLabel;
+            param["labelLayerId"] = labelLayerId;
+            param["labelFieldId"] = labelFieldId;
+            param["labelColor"] = "#" + labelColor;
+            param["labelFontSize"] = labelFontSize;
+            param["renderLayerId"] = renderLayerId;
+            param["renderType"] = renderType;
+            param["featureType"] = featureType;
+            param["singleFillColor"] = "#" + singleFillColor;
+            param["singleLineColor"] = "#" + singleLineColor;
+            param["singleLineWidth"] = singleLineWidth;
+            param["uniqueFieldId"] = uniqueFieldId;
+            param["uniqueColorRampId"] = uniqueColorRampId;
+            param["xmax"] = xmax;
+            param["xmin"] = xmin;
+            param["ymax"] = ymax;
+            param["ymin"] = ymin;
+
+            paramStr = JSON.stringify(param);
+
+
+            //使用jQuery获取数据
+            $(document).ready(function () {
+                $.ajax({
+                    type: "POST",
+                    url: "CustomRenderMap.asmx/SetCustomRenderConfig",
+                    data: paramStr,
+                    contentType: "application/json; charset=utf-8",
+                    dataType: "json",
+                    success: function (msg) {
+                        var result = msg.d;
+                        if (result == "1") {
+                            GetRenderConfigFromData();      //如果保存成功，则重新获取数据，添加到界面
+                            alert("保存成功！");
+                        } else {
+                            alert("保存失败，请刷新重试。");
+                        }
+                    }
+                });
+            });
+        }
+
+        function setSymbolRenderConfig(index) {
+            if (index == 0) {
+                return;
+            }
+            if (!symbolRenderConfigData || symbolRenderConfigData.length < index) {
+                alert("数据获取错误，请刷新重试。");
+                return;
+            }
+            var selectConfig = symbolRenderConfigData[index];
+            if (!selectConfig) {
+                return;
+            }
+            var name = symbolRenderConfigData["name"];
+            //标注层
+            var ifShowLabel = selectConfig["ifShowLabel"];  //是否显示标注图层
+            if (ifShowLabel) {
+                $("#showLabelCheckBox").jqxCheckBox('check');
+            } else {
+                $("#showLabelCheckBox").jqxCheckBox('uncheck');
+            }
+            $("#showLabelCheckBox").jqxCheckBox('val', ifShowLabel);
+            var labelLayerId = selectConfig["labelLayerId"];            //标注图层id
+            if (labelLayerId) {
+                currentOptLayerId = labelLayerId;
+            }
+            var labelFieldId = selectConfig["labelFieldId"];    //标注图层字段
+            if (labelFieldId) {
+                $("#labelFieldDropDownList").jqxDropDownList('selectIndex', labelFieldId);
+            }
+            var labelColor = selectConfig["labelColor"];          //标注图层颜色
+            if (labelColor) {
+                $("#setLabelColorPicker").jqxColorPicker('setColor', labelColor);
+            }
+            var labelFontSize = selectConfig["labelFontSize"];
+            if (labelFontSize) {
+                $("#setLabelSizeDropDown").jqxDropDownList('val', labelFontSize);
+            }
+            if (ifShowLabel) {
+                setTimeout(function () {
+                    setLabelLayer();
+                }, 500);//延迟1秒开始周期回调();    //设置标注图层
+            }
+            //渲染
+            var renderLayerId = selectConfig["renderLayerId"];      //渲染图层id
+            if (renderLayerId) {
+                currentOptLayerId = renderLayerId;
+                var layerInfo = mapLayerInfosArr[currentOptLayerId];
+                if (layerInfo) {
+                    currentLayerName = layerInfo["name"];
+                    //var layerId = layerInfo["id"];
+                    $("#labelSettingCurLayerName").text(currentLayerName);
+                    $("#symbolRenderCurLayerName").text(currentLayerName);
+                }
+                //$("#sudan_layerListDiv").jqxTree('selectItem', $("#" + currentOptLayerId)[0]);
+            }
+            setTimeout(function () {
+                setUniqueRenderConfig(selectConfig);
+            }, 500);//延迟1秒开始周期回调
+
+        }
+
+        function setUniqueRenderConfig(selectConfig) {
+            var renderType = selectConfig["renderType"];      //渲染类型，0单一值，1唯一值
+            symbolRenderFeatureType = selectConfig["featureType"];      //要素类型
+            $("#jqxTabsSymbolRender").jqxTabs('val', renderType);
+            //单一值
+            var singleFillColor = selectConfig["singleFillColor"];
+            if (singleFillColor) {
+                $("#setSingleSymbolColorPicker").jqxColorPicker('setColor', singleFillColor);
+            }
+            var singleLineColor = selectConfig["singleLineColor"];
+            if (singleLineColor) {
+                $("#setSingleSymbolColorOutlinePicker").jqxColorPicker('setColor', singleLineColor);
+            }
+            var singleLineWidth = selectConfig["singleLineWidth"];
+            $("#setSingleSymbolSizeNumber").jqxNumberInput('val', singleLineWidth);
+            var uniqueFieldId = selectConfig["uniqueFieldId"];
+            $("#uniqueRenderFieldDropDownList").jqxDropDownList('selectIndex', uniqueFieldId);
+            var uniqueColorRampId = selectConfig["uniqueColorRampId"];
+            $("#uniqueRenderColorRampDropDownList").jqxDropDownList('selectIndex', uniqueColorRampId);
+            var xmax = selectConfig["xmax"];
+            var xmin = selectConfig["xmin"];
+            var ymax = selectConfig["ymax"];
+            var ymin = selectConfig["ymin"];
+            var extent = new Extent(xmin, ymin, xmax, ymax, map.spatialReference);
+            map.setExtent((extent));
+
+//            if(uniqueRenderLayerAttributeArray.length >0){
+            //执行渲染
+            setTimeout(function () {
+                setLayerSymbolRender(true);
+            }, 500);//延迟1秒开始周期回调
+//            }
         }
 
 
@@ -960,7 +1258,6 @@ require([
                     feature.setSymbol(setFeatureSymbol(geo.type));
                     map.graphics.clear();
                     map.graphics.add(feature);
-
                 });
                 //属性表双击事件
                 $("#attributeGrid").on('rowdoubleclick', function (event) {
@@ -971,28 +1268,47 @@ require([
                     $('#attrFeatureEditWindow').jqxWindow({position: {x: attrWindowPosition.x + attrWindowWidth + 4, y: attrWindowPosition.y}});
                     $('#attrFeatureEditWindow').jqxWindow('open');
 
-                    //加载要素属性数据
-                    var data = attrTableDataFields[rowIndex];    //得到该行的数据
-                    if (!data) {
+                    var localData = [];
+                    if (attributeArray.length < rowIndex) {
                         return;
                     }
+                    var record = attributeArray[rowIndex];
+                    var index = 0;
+                    //加载要素属性数据
+                    for (var property in record) {
+                        var data = {};
+                        if (attrTableDataFields.length < index) {
+                            break;
+                        }
+                        var type = attrTableDataFields[index]["type"];
+                        var value = record[property];
+
+                        data["property"] = property;
+                        data["value"] = value;
+                        data["type"] = type;
+
+                        localData.push(data);
+                        index++;
+                    }
+//                    var data = attrTableDataFields[rowIndex];    //得到该行的数据
+//                    if (!data) {
+//                        return;
+//                    }
                     //设置grid数据
                     var attrEditSource = {
-                        localdata: data,
+                        localdata: localData,
                         datatype: "array",
                         dataField: [
-                            {name: 'property', type: 'string'},
-                            {name: 'value', type: 'string'}
+                            { name: "property", type: "string" },
+                            { name: "value", type: "string" },
+                            { name: "type", type: "string" }
                         ]
                     };
-
                     var dataAdapter = new $.jqx.dataAdapter(attrEditSource);
                     $("#attrPropertyTreeGrid").jqxTreeGrid({
                         source: dataAdapter
                     });
-
                 });
-
 
                 //鼠标编辑window cellValue事件
                 $("#attrPropertyTreeGrid").on('cellValueChanged', function (event) {
@@ -1043,6 +1359,7 @@ require([
                                 pageable: true,
                                 pagesize: 100,
                                 columnsresize: true,
+                                editable: true,
                                 selectionmode: 'singlerow',
                                 sortable: true
                             });
@@ -1052,42 +1369,53 @@ require([
                     width: 250, height: 350, resizable: false, autoOpen: false,
                     initContent: function () {
                         $('#attrPropertyTreeGrid').jqxTreeGrid({
-                            altrows: true,
-                            autoRowHeight: false,
-                            editSettings: { saveOnPageChange: true, saveOnBlur: false, saveOnSelectionChange: true,
-                                cancelOnEsc: true, saveOnEnter: true, editOnDoubleClick: true, editOnF2: true },
-                            editable: true,
+//                            altrows: true,
+//                            autoRowHeight: false,
+//                            editSettings: { saveOnPageChange: true, saveOnBlur: false, saveOnSelectionChange: true,
+//                                cancelOnEsc: true, saveOnEnter: true, editOnDoubleClick: true, editOnF2: true },
+//                            editable: true,
+//                            columns: [
+//                                { text: '属性项', editable: false, columnType: 'none', dataField: 'property', width: 80 },
+//                                {
+//                                    text: '属性值', dataField: 'value', width: 150, columnType: "custom",
+//                                    // creates an editor depending on the "type" value.
+//                                    createEditor: function (rowKey, cellvalue, editor, cellText, width, height) {
+//                                        var input = $("<input class='textbox' style='border: none;'/>").appendTo(editor);
+//                                        input.jqxInput({ width: '100%', height: '100%' });
+//                                    },
+//                                    // updates the editor's value.
+//                                    initEditor: function (rowKey, cellvalue, editor, celltext, width, height) {
+//                                        var row = $("#attrPropertyTreeGrid").jqxTreeGrid('getRow', rowKey);
+//                                        $(editor.find('.textbox')).val(cellvalue);
+//                                    },
+//                                    // returns the value of the custom editor.
+//                                    getEditorValue: function (rowKey, cellvalue, editor) {
+//                                        var row = $("#attrPropertyTreeGrid").jqxTreeGrid('getRow', rowKey);
+//                                        switch (row.type) {
+//                                            case "string":
+//                                                return $(editor.find('.textbox')).val();
+//                                            case "number":
+//                                                var number = parseFloat($(editor.find('.textbox')).val());
+//                                                if (isNaN(number)) {
+//                                                    return 0;
+//                                                }
+//                                                else return number;
+//                                        }
+//                                        return "";
+//                                    }
+//                                }
+//                            ]
+                            width: 220,
+                            height: 250,
+                            //source: dataAdapter,
+                            //pageable: true,
+                            //columnsResize: true,
+
                             columns: [
-                                { text: '属性项', editable: false, columnType: 'none', dataField: 'property', width: 80 },
-                                {
-                                    text: '属性值', dataField: 'value', width: 150, columnType: "custom",
-                                    // creates an editor depending on the "type" value.
-                                    createEditor: function (rowKey, cellvalue, editor, cellText, width, height) {
-                                        var input = $("<input class='textbox' style='border: none;'/>").appendTo(editor);
-                                        input.jqxInput({ width: '100%', height: '100%' });
-                                    },
-                                    // updates the editor's value.
-                                    initEditor: function (rowKey, cellvalue, editor, celltext, width, height) {
-                                        var row = $("#attrPropertyTreeGrid").jqxTreeGrid('getRow', rowKey);
-                                        $(editor.find('.textbox')).val(cellvalue);
-                                    },
-                                    // returns the value of the custom editor.
-                                    getEditorValue: function (rowKey, cellvalue, editor) {
-                                        var row = $("#attrPropertyTreeGrid").jqxTreeGrid('getRow', rowKey);
-                                        switch (row.type) {
-                                            case "string":
-                                                return $(editor.find('.textbox')).val();
-                                            case "number":
-                                                var number = parseFloat($(editor.find('.textbox')).val());
-                                                if (isNaN(number)) {
-                                                    return 0;
-                                                }
-                                                else return number;
-                                        }
-                                        return "";
-                                    }
-                                }
+                                { text: 'FirstName', dataField: 'FirstName', minWidth: 100, width: 200 },
+                                { text: 'LastName', dataField: 'LastName', width: 200 }
                             ]
+
                         });
                     }
                 });
@@ -1299,6 +1627,8 @@ require([
                 layerFieldsInfo = "failure";
                 console.log("无法获取图层列表", dojoJson.toJson(error, true));
             }
+            setUniqueRenderFieldsListDropDown();
+            setLabelFieldsListDropDown();
 
         }
 
@@ -1337,6 +1667,11 @@ require([
                 if (parts[i].length == 1) parts[i] = '0' + parts[i];
             }
             return '#' + parts.join('');
+        }
+
+        //左边补零
+        function addZero(str, length) {
+            return new Array(length - str.length + 1).join("0") + str;
         }
 
 
