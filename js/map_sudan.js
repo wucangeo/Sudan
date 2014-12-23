@@ -51,8 +51,10 @@ var ifRenderConfig = false;     //是否是渲染配置
 
 require([
         "esri/map",
+        "esri/urlUtils",
         "esri/request",
         "esri/Color",
+        "esri/graphic",
         "esri/InfoTemplate",
         "esri/layers/FeatureLayer",
         "esri/layers/ArcGISDynamicMapServiceLayer",
@@ -78,10 +80,14 @@ require([
         "dojo/dom-class",
         "dojo/_base/json",
         "dojo/string",
-        "dojo/domReady!"], function (Map, esriRequest, Color, InfoTemplate, FeatureLayer, ArcGISDynamicMapServiceLayer, LabelLayer, Extent, SimpleRenderer, UniqueValueRenderer, SimpleFillSymbol, SimpleLineSymbol, SimpleMarkerSymbol, TextSymbol, Query, QueryTask, dom, on, parser, query, arrayUtils, domClass, dojoJson, dojoString) {
+        "dojo/domReady!"], function (Map, urlUtils,esriRequest, Color, Graphic,InfoTemplate, FeatureLayer, ArcGISDynamicMapServiceLayer, LabelLayer, Extent, SimpleRenderer, UniqueValueRenderer, SimpleFillSymbol, SimpleLineSymbol, SimpleMarkerSymbol, TextSymbol, Query, QueryTask, dom, on, parser, query, arrayUtils, domClass, dojoJson, dojoString) {
 
         parser.parse();
-        esriConfig.defaults.io.proxyUrl = "../proxy/";
+        urlUtils.addProxyRule({
+            urlPrefix: "route.arcgis.com",
+            proxyUrl: "../proxy/proxy.ashx"
+        });
+//        esriConfig.defaults.io.proxyUrl = "../proxy";
 
         map = new Map("sudan_mapDiv", {
             logo: false
@@ -1234,7 +1240,7 @@ require([
             //各控件事件
             function _addEventListeners() {
                 //属性表单击事件
-                $("#attributeGrid").on('rowclick', function (event) {
+                $("#attributeGrid").on('rowdoubleclick', function (event) {
                     //取得点击表格位置
                     var args = event.args;
                     var rowindex = args.rowindex;
@@ -1259,93 +1265,20 @@ require([
                     map.graphics.clear();
                     map.graphics.add(feature);
                 });
-                //属性表双击事件
-                $("#attributeGrid").on('rowdoubleclick', function (event) {
-                    var rowIndex = event.args.rowindex;
-
-                    var attrWindowPosition = $('#attributeWindow').jqxWindow('position');
-                    var attrWindowWidth = $("#attributeWindow").jqxWindow('width');
-                    $('#attrFeatureEditWindow').jqxWindow({position: {x: attrWindowPosition.x + attrWindowWidth + 4, y: attrWindowPosition.y}});
-                    $('#attrFeatureEditWindow').jqxWindow('open');
-
-                    var localData = [];
-                    if (attributeArray.length < rowIndex) {
-                        return;
-                    }
-                    var record = attributeArray[rowIndex];
-                    var index = 0;
-                    //加载要素属性数据
-                    for (var property in record) {
-                        var data = {};
-                        if (attrTableDataFields.length < index) {
-                            break;
-                        }
-                        var type = attrTableDataFields[index]["type"];
-                        var value = record[property];
-
-                        data["property"] = property;
-                        data["value"] = value;
-                        data["type"] = type;
-
-                        localData.push(data);
-                        index++;
-                    }
-//                    var data = attrTableDataFields[rowIndex];    //得到该行的数据
-//                    if (!data) {
-//                        return;
-//                    }
-                    //设置grid数据
-                    var attrEditSource = {
-                        localdata: localData,
-                        datatype: "array",
-                        dataField: [
-                            { name: "property", type: "string" },
-                            { name: "value", type: "string" },
-                            { name: "type", type: "string" }
-                        ]
-                    };
-                    var dataAdapter = new $.jqx.dataAdapter(attrEditSource);
-                    $("#attrPropertyTreeGrid").jqxTreeGrid({
-                        source: dataAdapter
-                    });
-                });
-
-                //鼠标编辑window cellValue事件
-                $("#attrPropertyTreeGrid").on('cellValueChanged', function (event) {
-                    // Update the Location and Size properties and their nested properties.
-                    var args = event.args;
-                    var row = args.row;
-                    var records = row.records;
-                    // update the nested properties when a parent value is changed.
-                    if (records.length > 0) {
-                        var values = args.value.split(',');
-                        for (var i = 0; i < values.length; i++) {
-                            var value = $.trim(values[i]);
-                            var rowKey = $("#attrPropertyTreeGrid").jqxTreeGrid('getKey', records[i]);
-                            $("#attrPropertyTreeGrid").jqxTreeGrid('setCellValue', rowKey, 'value', value);
-                        }
-                    }
-                    // update the parent value when the user changes a nested property,
-                    else if (row.level == 1) {
-                        var parent = row.parent;
-                        var parentRowKey = $("#attrPropertyTreeGrid").jqxTreeGrid('getKey', parent);
-                        var value = "";
-                        var records = parent.records;
-                        if (records.length > 0) {
-                            for (var i = 0; i < records.length; i++) {
-                                var rowKey = $("#attrPropertyTreeGrid").jqxTreeGrid('getKey', records[i]);
-                                var cellValue = $("#attrPropertyTreeGrid").jqxTreeGrid('getCellValue', rowKey, 'value');
-                                value += cellValue;
-                                if (i < records.length - 1) {
-                                    value += ", ";
-                                }
-                            }
-                        }
-
-                        $("#attrPropertyTreeGrid").jqxTreeGrid('setCellValue', parentRowKey, 'value', value);
+                $('#attributeSaveButton').on("click", function (event) {
+                    var cell = $('#attributeGrid').jqxGrid('getselectedcell');
+                    if(cell){
+                        var rowIndex = cell.rowindex;
+                        SaveFeatureEditing(rowIndex);
                     }
                 });
-
+                $('#attributeDeleteButton').on("click", function (event) {
+                    var cell = $('#attributeGrid').jqxGrid('getselectedcell');
+                    if(cell){
+                        var rowIndex = cell.rowindex;
+                        DeleteFeature(rowIndex);
+                    }
+                });
             };
             function _createElements() {
                 $('#attributeWindow').jqxWindow({
@@ -1360,67 +1293,13 @@ require([
                                 pagesize: 100,
                                 columnsresize: true,
                                 editable: true,
-                                selectionmode: 'singlerow',
+                                selectionmode: 'multiplecellsadvanced',
                                 sortable: true
                             });
+                        $('#attributeSaveButton').jqxButton({ width: '80px', disabled: false });
+                        $('#attributeDeleteButton').jqxButton({ width: '80px', disabled: false });
                     }
                 });
-                $('#attrFeatureEditWindow').jqxWindow({
-                    width: 250, height: 350, resizable: false, autoOpen: false,
-                    initContent: function () {
-                        $('#attrPropertyTreeGrid').jqxTreeGrid({
-//                            altrows: true,
-//                            autoRowHeight: false,
-//                            editSettings: { saveOnPageChange: true, saveOnBlur: false, saveOnSelectionChange: true,
-//                                cancelOnEsc: true, saveOnEnter: true, editOnDoubleClick: true, editOnF2: true },
-//                            editable: true,
-//                            columns: [
-//                                { text: '属性项', editable: false, columnType: 'none', dataField: 'property', width: 80 },
-//                                {
-//                                    text: '属性值', dataField: 'value', width: 150, columnType: "custom",
-//                                    // creates an editor depending on the "type" value.
-//                                    createEditor: function (rowKey, cellvalue, editor, cellText, width, height) {
-//                                        var input = $("<input class='textbox' style='border: none;'/>").appendTo(editor);
-//                                        input.jqxInput({ width: '100%', height: '100%' });
-//                                    },
-//                                    // updates the editor's value.
-//                                    initEditor: function (rowKey, cellvalue, editor, celltext, width, height) {
-//                                        var row = $("#attrPropertyTreeGrid").jqxTreeGrid('getRow', rowKey);
-//                                        $(editor.find('.textbox')).val(cellvalue);
-//                                    },
-//                                    // returns the value of the custom editor.
-//                                    getEditorValue: function (rowKey, cellvalue, editor) {
-//                                        var row = $("#attrPropertyTreeGrid").jqxTreeGrid('getRow', rowKey);
-//                                        switch (row.type) {
-//                                            case "string":
-//                                                return $(editor.find('.textbox')).val();
-//                                            case "number":
-//                                                var number = parseFloat($(editor.find('.textbox')).val());
-//                                                if (isNaN(number)) {
-//                                                    return 0;
-//                                                }
-//                                                else return number;
-//                                        }
-//                                        return "";
-//                                    }
-//                                }
-//                            ]
-                            width: 220,
-                            height: 250,
-                            //source: dataAdapter,
-                            //pageable: true,
-                            //columnsResize: true,
-
-                            columns: [
-                                { text: 'FirstName', dataField: 'FirstName', minWidth: 100, width: 200 },
-                                { text: 'LastName', dataField: 'LastName', width: 200 }
-                            ]
-
-                        });
-                    }
-                });
-                $('#attrSaveEdit').jqxButton({ width: '80px', disabled: false });
-                $('#attrDeleteFeature').jqxButton({ width: '80px', disabled: false });
             };
             return {
                 init: function () {
@@ -1510,11 +1389,65 @@ require([
                 source: dataAdapter,
                 columns: columns
             });
-
         }
 
         //----------属性编辑---------------------
-        function initFeatureEditWindow() {
+        function SaveFeatureEditing(rowIndex) {
+            var data = $('#attributeGrid').jqxGrid('getrowdata', rowIndex);
+            delete data.uid;        //莫名多出个uid
+            if(singleRenderLayerAttributeArray.length <rowIndex){
+                return;
+            }
+            var graphic = singleRenderLayerAttributeArray[rowIndex];
+            for(var key in graphic.attributes){
+                var value = graphic.attributes[key];
+                var dataValue = data[key];
+                if(value != dataValue){
+                    graphic.attributes[key] = dataValue;
+                }
+            }
+
+            var featureLayerEdit = new FeatureLayer(mapURL_sudan_FeatureLayer + "/" + currentOptLayerId);
+            featureLayerEdit.applyEdits( null, [graphic],null, function onComplete(adds, updates, deletes)
+                {
+                    if (updates.length > 0)
+                    {
+                        alert("属性修改成功!");
+                    }
+                },
+                function errCallback(err)
+                {
+                    //alert(err);
+                });
+        }
+        function DeleteFeature(rowIndex){
+            var graphicFrom = singleRenderLayerAttributeArray[rowIndex];
+            if(!graphicFrom){
+                return;
+            }
+            var graphic = new Graphic(graphicFrom.geometry,null,graphicFrom.attributes,null);
+
+            var featureLayerEdit = new FeatureLayer(mapURL_sudan_FeatureLayer + "/" + currentOptLayerId);
+            featureLayerEdit.applyEdits(null, null, [graphic],function() {
+                operation = new esri.dijit.editing.Delete({
+                    featureLayer: featureLayerEdit,
+                    deletedGraphics: [graphic]
+                });
+            });
+
+
+
+                //, function onComplete(adds, updates, deletes)
+//                {
+//                    if (deletes.length > 0)
+//                    {
+//                        alert("要素删除成功!");
+//                    }
+//                },
+//                function errCallback(err)
+//                {
+//                    alert(err);
+//                });
 
         }
 

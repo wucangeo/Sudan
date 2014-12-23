@@ -131,8 +131,15 @@
         <div id="attributeHeader">
             <span id="attributeContainerTitle">图层属性</span>
         </div>
-        <div id='jqxWidgetGrid' style="font-size: 13px; font-family: Verdana;margin: 3px;">
-            <div id="attributeGrid">
+        <div>
+            <div style="margin:5px;">
+                <div style="float:left;"><input type="button" value="保存" id = "attributeSaveButton"/></div>
+                <div style="float:left;margin-left:10px;"><input type="button" value="删除" id = "attributeDeleteButton"/></div>
+            </div>
+            <br />
+            <div id='jqxWidgetGrid' style="margin-top:10px; font-size: 12px; font-family: Verdana;">
+                <div id="attributeGrid">
+                </div>
             </div>
         </div>
     </div>
