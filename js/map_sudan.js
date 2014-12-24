@@ -1272,13 +1272,7 @@ require([
                         SaveFeatureEditing(rowIndex);
                     }
                 });
-                $('#attributeDeleteButton').on("click", function (event) {
-                    var cell = $('#attributeGrid').jqxGrid('getselectedcell');
-                    if(cell){
-                        var rowIndex = cell.rowindex;
-                        DeleteFeature(rowIndex);
-                    }
-                });
+
             };
             function _createElements() {
                 $('#attributeWindow').jqxWindow({
@@ -1297,7 +1291,6 @@ require([
                                 sortable: true
                             });
                         $('#attributeSaveButton').jqxButton({ width: '80px', disabled: false });
-                        $('#attributeDeleteButton').jqxButton({ width: '80px', disabled: false });
                     }
                 });
             };
@@ -1412,12 +1405,14 @@ require([
                 {
                     if (updates.length > 0)
                     {
-                        alert("属性修改成功!");
+                        alert("属性修改成功！");
+                    }else{
+                        alert("属性修改失败，请刷新重试！");
                     }
                 },
                 function errCallback(err)
                 {
-                    //alert(err);
+                    //alert("属性修改失败，请刷新重试！");
                 });
         }
         function DeleteFeature(rowIndex){
@@ -1434,9 +1429,6 @@ require([
                     deletedGraphics: [graphic]
                 });
             });
-
-
-
                 //, function onComplete(adds, updates, deletes)
 //                {
 //                    if (deletes.length > 0)

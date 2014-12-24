@@ -68,8 +68,48 @@ namespace Sudan
 
         [WebMethod]
         //[ScriptMethod(UseHttpGet = true)]
-        public string SetCustomRenderConfig(string name, string labelLayerId, string labelFieldId, string labelColor, string labelFontSize,
-            string renderLayerId, string renderType, string singleFillColor, string singleLineColor, string singleLineWidth, 
+        public string DeleteRenderConfigById(string id)
+        {
+            string result = "success";
+            int rid = -1;
+            if (!int.TryParse(id, out rid))
+            {
+                result = "failure";
+                return result;
+            }
+            //读取配置文件中的链接字符串
+            String connectionString = ConfigurationManager.ConnectionStrings["Conn"].ConnectionString;
+            //创建SQLConnection对象
+            SqlConnection conn = new SqlConnection(connectionString);
+            //SQL语句
+            string sql = "delete from CustomSymbolRender where id ='"+id+"'";
+            try
+            {
+                conn.Open();
+                SqlCommand cmd = new SqlCommand(sql, conn);
+                cmd.CommandText = sql;
+                int rowsCount = cmd.ExecuteNonQuery();
+                result = rowsCount.ToString();
+            }
+            catch (SqlException sqlex)
+            {
+                result = "falure：" + sqlex;
+            }
+            finally
+            {
+                //关闭连接
+                if (conn != null)
+                {
+                    conn.Close();
+                }
+            }            
+            return result;
+        }
+
+        [WebMethod]
+        //[ScriptMethod(UseHttpGet = true)]
+        public string SetCustomRenderConfig(string name, string ifShowLabel, string labelLayerId, string labelFieldId, string labelColor, string labelFontSize,
+            string renderLayerId, string renderType,string featureType, string singleFillColor, string singleLineColor, string singleLineWidth, 
             string uniqueFieldId, string uniqueColorRampId,string xmax,string xmin, string ymax, string ymin)
         {
             string result = "success";
@@ -85,16 +125,20 @@ namespace Sudan
             //    + "VALUES('" + name + "','" + labelLayerId + "','" + labelFieldId + "','" + labelColor + "','" + labelFontSize + "','"
             //    + renderLayerId + "','" + renderType + "','" + singleFillColor + "','" + singleLineColor + "','" + singleLineWidth + "','"
             //    + uniqueFieldId + "','" + uniqueColorRampId + "','" + xmax + "','" + xmin + "','" + ymax + "','" + ymin + "')";
-            string sql = "insert into CustomSymbolRender(name, labelLayerId,labelFieldId,labelColor,labelFontSize,"
-            +"renderLayerId,renderType,singleFillColor,singleLineColor,singleLineWidth,"
+            string sql = "insert into CustomSymbolRender(name, ifShowLabel,labelLayerId,labelFieldId,labelColor,labelFontSize,"
+            + "renderLayerId,renderType,featureType,singleFillColor,singleLineColor,singleLineWidth,"
             + "uniqueFieldId,uniqueColorRampId,xmax,xmin,ymax,ymin) values ("
-            +"@name,@labelLayerId,@labelFieldId,@labelColor,@labelFontSize,"
-            +"@renderLayerId,@renderType,@singleFillColor,@singleLineColor,@singleLineWidth,"
+            + "@name,@ifShowLabel,@labelLayerId,@labelFieldId,@labelColor,@labelFontSize,"
+            + "@renderLayerId,@renderType,@featureType,@singleFillColor,@singleLineColor,@singleLineWidth,"
             + "@uniqueFieldId,@uniqueColorRampId,@xmax,@xmin,@ymax,@ymin)";
 
             try
-            {
+            {                
                 //处理为空情况
+                if (ifShowLabel == "")
+                {
+                    ifShowLabel = "false";
+                }
                 int labelLayerId2 = 0;
                 if (int.TryParse(labelLayerId, out labelLayerId2) == false) 
                 {
@@ -159,12 +203,14 @@ namespace Sudan
                 SqlCommand cmd = new SqlCommand(sql, conn);
                 cmd.CommandText = sql;
                 cmd.Parameters.AddWithValue("@name", name);
+                cmd.Parameters.AddWithValue("@ifShowLabel", ifShowLabel);
                 cmd.Parameters.AddWithValue("@labelLayerId", Convert.ToInt32(labelLayerId2));
                 cmd.Parameters.AddWithValue("@labelFieldId", Convert.ToInt32(labelFieldId2));
                 cmd.Parameters.AddWithValue("@labelColor", labelColor);
                 cmd.Parameters.AddWithValue("@labelFontSize", Convert.ToInt32(labelFontSize2));
                 cmd.Parameters.AddWithValue("@renderLayerId", Convert.ToInt32(renderLayerId2));
                 cmd.Parameters.AddWithValue("@renderType", Convert.ToInt32(renderType2));
+                cmd.Parameters.AddWithValue("@featureType",featureType);
                 cmd.Parameters.AddWithValue("@singleFillColor", singleFillColor);
                 cmd.Parameters.AddWithValue("@singleLineColor", singleLineColor);
                 cmd.Parameters.AddWithValue("@singleLineWidth", Convert.ToInt32(singleLineWidth2));
@@ -175,7 +221,8 @@ namespace Sudan
                 cmd.Parameters.AddWithValue("@ymax", Convert.ToDouble(ymax2));
                 cmd.Parameters.AddWithValue("@ymin", Convert.ToDouble(ymin2));
                                 
-                cmd.ExecuteNonQuery();
+                int involeCount = cmd.ExecuteNonQuery();
+                result = involeCount.ToString();
             }
             catch (SqlException sqlex)
             {
