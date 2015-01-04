@@ -117,14 +117,6 @@ namespace Sudan
             String connectionString = ConfigurationManager.ConnectionStrings["Conn"].ConnectionString;
             //创建SQLConnection对象
             SqlConnection conn = new SqlConnection(connectionString);
-            //SQL语句
-            //string sqlStr = "INSERT INTO [CustomSymbolRender] "
-            //    + "(name, labelLayerId,labelFieldId,labelColor,labelFontSize,"
-            //    + "renderLayerId,renderType,singleFillColor,singleLineColor,singleLineWidth,"
-            //    + "uniqueFieldId,uniqueColorRampId,xmax,xmin,ymax,ymin)"
-            //    + "VALUES('" + name + "','" + labelLayerId + "','" + labelFieldId + "','" + labelColor + "','" + labelFontSize + "','"
-            //    + renderLayerId + "','" + renderType + "','" + singleFillColor + "','" + singleLineColor + "','" + singleLineWidth + "','"
-            //    + uniqueFieldId + "','" + uniqueColorRampId + "','" + xmax + "','" + xmin + "','" + ymax + "','" + ymin + "')";
             string sql = "insert into CustomSymbolRender(name, ifShowLabel,labelLayerId,labelFieldId,labelColor,labelFontSize,"
             + "renderLayerId,renderType,featureType,singleFillColor,singleLineColor,singleLineWidth,"
             + "uniqueFieldId,uniqueColorRampId,xmax,xmin,ymax,ymin) values ("

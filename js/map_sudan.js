@@ -1391,14 +1391,25 @@ require([
             if(singleRenderLayerAttributeArray.length <rowIndex){
                 return;
             }
+
             var graphic = singleRenderLayerAttributeArray[rowIndex];
+            var index = 0;
             for(var key in graphic.attributes){
+                var field = attrTableDataFields[index];
+                if(field["type"] == "date" && field["name"] == key){
+                    delete graphic.attributes[key];
+                    index++;
+                    continue;
+                }
                 var value = graphic.attributes[key];
                 var dataValue = data[key];
                 if(value != dataValue){
                     graphic.attributes[key] = dataValue;
                 }
+                index++;
             }
+
+            graphic.attributes['OBJECTID'] = Number(graphic.attributes['OBJECTID']);
 
             var featureLayerEdit = new FeatureLayer(mapURL_sudan_FeatureLayer + "/" + currentOptLayerId);
             featureLayerEdit.applyEdits( null, [graphic],null, function onComplete(adds, updates, deletes)
